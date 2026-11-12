@@ -7,4 +7,9 @@ sealed class Screen(val route: String) {
     data object Reorder : Screen("reorder")
     data object Compress : Screen("compress")
     data object Viewer : Screen("viewer")
+    data class ToolAction(val toolId: String) : Screen("tool/$toolId") {
+        companion object {
+            const val ROUTE_PATTERN = "tool/{toolId}"
+        }
+    }
 }

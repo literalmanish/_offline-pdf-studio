@@ -13,15 +13,18 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
 import com.offlinepdf.studio.ui.navigation.Screen
 import com.offlinepdf.studio.ui.screens.compress.CompressScreen
 import com.offlinepdf.studio.ui.screens.home.HomeScreen
 import com.offlinepdf.studio.ui.screens.merge.MergeScreen
 import com.offlinepdf.studio.ui.screens.reorder.ReorderScreen
 import com.offlinepdf.studio.ui.screens.split.SplitScreen
+import com.offlinepdf.studio.ui.screens.tool.ToolActionScreen
 import com.offlinepdf.studio.ui.screens.viewer.ViewerScreen
 import com.offlinepdf.studio.ui.theme.OfflinePdfStudioTheme
 
@@ -78,32 +81,35 @@ fun AppNavigation(
         }
 
         composable(Screen.Merge.route) {
-            MergeScreen(
-                onBack = { navController.popBackStack() }
-            )
+            MergeScreen(onBack = { navController.popBackStack() })
         }
 
         composable(Screen.Split.route) {
-            SplitScreen(
-                onBack = { navController.popBackStack() }
-            )
+            SplitScreen(onBack = { navController.popBackStack() })
         }
 
         composable(Screen.Reorder.route) {
-            ReorderScreen(
-                onBack = { navController.popBackStack() }
-            )
+            ReorderScreen(onBack = { navController.popBackStack() })
         }
 
         composable(Screen.Compress.route) {
-            CompressScreen(
-                onBack = { navController.popBackStack() }
-            )
+            CompressScreen(onBack = { navController.popBackStack() })
         }
 
         composable(Screen.Viewer.route) {
             ViewerScreen(
                 initialUri = initialIncomingUri,
+                onBack = { navController.popBackStack() }
+            )
+        }
+
+        composable(
+            route = Screen.ToolAction.ROUTE_PATTERN,
+            arguments = listOf(navArgument("toolId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val toolId = backStackEntry.arguments?.getString("toolId") ?: "rotate"
+            ToolActionScreen(
+                toolId = toolId,
                 onBack = { navController.popBackStack() }
             )
         }
