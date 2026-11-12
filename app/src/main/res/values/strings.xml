@@ -1,0 +1,13 @@
+<resources>
+    <string name="app_name">Offline PDF Studio</string>
+    <string name="tool_merge">Merge PDFs</string>
+    <string name="tool_merge_desc">Combine multiple PDF documents into one single file</string>
+    <string name="tool_split">Split PDF</string>
+    <string name="tool_split_desc">Extract page ranges or separate individual pages</string>
+    <string name="tool_reorder">Reorder &amp; Delete</string>
+    <string name="tool_reorder_desc">Rearrange pages visually or discard unwanted pages</string>
+    <string name="tool_compress">Compress PDF</string>
+    <string name="tool_compress_desc">Reduce file size on-device without compromising text</string>
+    <string name="tool_view">View PDF</string>
+    <string name="tool_view_desc">Fast, offline high-resolution native viewer</string>
+</resources>
