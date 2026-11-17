@@ -1,7 +1,11 @@
 package com.offlinepdf.studio.core.util
 
+import android.content.ContentValues
 import android.content.Context
 import android.net.Uri
+import android.os.Build
+import android.os.Environment
+import android.provider.MediaStore
 import android.provider.OpenableColumns
 import androidx.core.content.FileProvider
 import java.io.File
@@ -65,6 +69,56 @@ class FileStorageManager(private val context: Context) {
     fun getShareableUri(file: File): Uri {
         val authority = "${context.packageName}.fileprovider"
         return FileProvider.getUriForFile(context, authority, file)
+    }
+
+    /**
+     * Direct download to public Downloads directory without requiring storage permissions
+     */
+    fun saveToPublicDownloads(file: File, mimeType: String = "application/pdf"): Uri? {
+        return try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                val values = ContentValues().apply {
+                    put(MediaStore.MediaColumns.DISPLAY_NAME, file.name)
+                    put(MediaStore.MediaColumns.MIME_TYPE, mimeType)
+                    put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS + "/OfflinePDFStudio")
+                    put(MediaStore.MediaColumns.IS_PENDING, 1)
+                }
+                val resolver = context.contentResolver
+                val uri = resolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values)
+                if (uri != null) {
+                    resolver.openOutputStream(uri)?.use { out ->
+                        file.inputStream().use { input -> input.copyTo(out) }
+                    }
+                    values.clear()
+                    values.put(MediaStore.MediaColumns.IS_PENDING, 0)
+                    resolver.update(uri, values, null, null)
+                }
+                uri
+            } else {
+                @Suppress("DEPRECATION")
+                val downloadDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
+                val subDir = File(downloadDir, "OfflinePDFStudio").apply { if (!exists()) mkdirs() }
+                val destFile = File(subDir, file.name)
+                file.copyTo(destFile, overwrite = true)
+                Uri.fromFile(destFile)
+            }
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    /**
+     * Copies a processed File to an external destination chosen by the user via Storage Access Framework
+     */
+    fun copyFileToUri(file: File, destinationUri: Uri): Boolean {
+        return try {
+            context.contentResolver.openOutputStream(destinationUri)?.use { out ->
+                file.inputStream().use { input -> input.copyTo(out) }
+            }
+            true
+        } catch (e: Exception) {
+            false
+        }
     }
 
     /**

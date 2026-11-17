@@ -34,6 +34,7 @@ import com.offlinepdf.studio.core.engine.model.PageItem
 import com.offlinepdf.studio.core.engine.model.ProcessingProgress
 import com.offlinepdf.studio.core.renderer.PdfRendererHelper
 import com.offlinepdf.studio.core.util.FileStorageManager
+import com.offlinepdf.studio.ui.components.ProcessCompleteDownloadDialog
 import com.offlinepdf.studio.ui.components.ProcessingDialog
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -221,26 +222,10 @@ fun ReorderScreen(
         }
 
         savedResultFile?.let { file ->
-            val shareableUri = remember(file) { storageManager.getShareableUri(file) }
-            AlertDialog(
-                onDismissRequest = { savedResultFile = null },
-                title = { Text("Document Saved! ✨") },
-                text = { Text("Modified PDF created: ${file.name}") },
-                confirmButton = {
-                    Button(onClick = {
-                        val shareIntent = Intent(Intent.ACTION_SEND).apply {
-                            type = "application/pdf"
-                            putExtra(Intent.EXTRA_STREAM, shareableUri)
-                            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                        }
-                        context.startActivity(Intent.createChooser(shareIntent, "Share PDF"))
-                    }) {
-                        Text("Share")
-                    }
-                },
-                dismissButton = {
-                    TextButton(onClick = { savedResultFile = null }) { Text("Done") }
-                }
+            ProcessCompleteDownloadDialog(
+                file = file,
+                title = "Document Saved! ✨",
+                onDismiss = { savedResultFile = null }
             )
         }
     }

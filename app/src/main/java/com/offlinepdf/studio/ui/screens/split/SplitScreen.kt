@@ -2,6 +2,7 @@ package com.offlinepdf.studio.ui.screens.split
 
 import android.content.Intent
 import android.net.Uri
+import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
@@ -164,25 +165,55 @@ fun SplitScreen(
         }
 
         splitResultFiles?.let { files ->
+            var downloadedCount by remember { mutableIntStateOf(0) }
             AlertDialog(
                 onDismissRequest = { splitResultFiles = null },
-                title = { Text("Split Complete! 📄") },
-                text = { Text("Successfully created ${files.size} document parts.") },
-                confirmButton = {
-                    Button(onClick = {
-                        val firstFile = files.firstOrNull() ?: return@Button
-                        val uri = storageManager.getShareableUri(firstFile)
-                        val shareIntent = Intent(Intent.ACTION_SEND).apply {
-                            type = "application/pdf"
-                            putExtra(Intent.EXTRA_STREAM, uri)
-                            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                title = { Text("Split Complete! 📄", fontWeight = FontWeight.Bold) },
+                text = {
+                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Text("Successfully created ${files.size} document parts.")
+
+                        if (downloadedCount > 0) {
+                            Text(
+                                "Downloaded $downloadedCount / ${files.size} parts to Downloads folder!",
+                                color = MaterialTheme.colorScheme.primary,
+                                fontWeight = FontWeight.SemiBold
+                            )
                         }
-                        context.startActivity(Intent.createChooser(shareIntent, "Share First Part"))
-                    }) {
-                        Text("Share First File")
+
+                        Button(
+                            onClick = {
+                                var count = 0
+                                files.forEach { f ->
+                                    val uri = storageManager.saveToPublicDownloads(f)
+                                    if (uri != null) count++
+                                }
+                                downloadedCount = count
+                                Toast.makeText(context, "Saved $count files to Downloads/OfflinePDFStudio", Toast.LENGTH_LONG).show()
+                            },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text("Direct Download All (${files.size} Parts)")
+                        }
+
+                        OutlinedButton(
+                            onClick = {
+                                val firstFile = files.firstOrNull() ?: return@OutlinedButton
+                                val uri = storageManager.getShareableUri(firstFile)
+                                val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                                    type = "application/pdf"
+                                    putExtra(Intent.EXTRA_STREAM, uri)
+                                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                                }
+                                context.startActivity(Intent.createChooser(shareIntent, "Share First Part"))
+                            },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text("Share First File")
+                        }
                     }
                 },
-                dismissButton = {
+                confirmButton = {
                     TextButton(onClick = { splitResultFiles = null }) { Text("Done") }
                 }
             )

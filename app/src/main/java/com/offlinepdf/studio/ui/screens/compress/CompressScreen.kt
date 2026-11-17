@@ -25,6 +25,7 @@ import com.offlinepdf.studio.core.engine.model.CompressionLevel
 import com.offlinepdf.studio.core.engine.model.EngineResult
 import com.offlinepdf.studio.core.engine.model.ProcessingProgress
 import com.offlinepdf.studio.core.util.FileStorageManager
+import com.offlinepdf.studio.ui.components.ProcessCompleteDownloadDialog
 import com.offlinepdf.studio.ui.components.ProcessingDialog
 import kotlinx.coroutines.launch
 import java.io.File
@@ -177,41 +178,20 @@ fun CompressScreen(
         }
 
         compressedResultFile?.let { file ->
-            val shareableUri = remember(file) { storageManager.getShareableUri(file) }
             val newSizeBytes = file.length()
             val savedBytes = (originalSizeBytes - newSizeBytes).coerceAtLeast(0L)
             val percent = if (originalSizeBytes > 0) (savedBytes.toFloat() / originalSizeBytes.toFloat() * 100).toInt() else 0
+            val desc = if (savedBytes > 0) {
+                "Reduced from ${originalSizeBytes / 1024} KB to ${newSizeBytes / 1024} KB (Saved $percent%)"
+            } else {
+                "Document optimized (${newSizeBytes / 1024} KB)"
+            }
 
-            AlertDialog(
-                onDismissRequest = { compressedResultFile = null },
-                title = { Text("Compression Done! 📉") },
-                text = {
-                    Column {
-                        Text("New Size: ${newSizeBytes / 1024} KB")
-                        Text("Original Size: ${originalSizeBytes / 1024} KB")
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text(
-                            text = if (savedBytes > 0) "Saved $percent% of file size!" else "File was already optimized.",
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                    }
-                },
-                confirmButton = {
-                    Button(onClick = {
-                        val shareIntent = Intent(Intent.ACTION_SEND).apply {
-                            type = "application/pdf"
-                            putExtra(Intent.EXTRA_STREAM, shareableUri)
-                            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                        }
-                        context.startActivity(Intent.createChooser(shareIntent, "Share Compressed PDF"))
-                    }) {
-                        Text("Share")
-                    }
-                },
-                dismissButton = {
-                    TextButton(onClick = { compressedResultFile = null }) { Text("Done") }
-                }
+            ProcessCompleteDownloadDialog(
+                file = file,
+                title = "Compression Complete! 📉",
+                description = desc,
+                onDismiss = { compressedResultFile = null }
             )
         }
     }

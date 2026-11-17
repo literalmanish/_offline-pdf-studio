@@ -6,8 +6,10 @@ import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
 import android.net.Uri
+import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import com.offlinepdf.studio.ui.components.ProcessCompleteDownloadDialog
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectDragGestures
@@ -730,50 +732,63 @@ fun ToolActionScreen(
         }
 
         resultFile?.let { file ->
-            val shareableUri = remember(file) { storageManager.getShareableUri(file) }
-            val mime = if (file.name.endsWith(".txt")) "text/plain" else "application/pdf"
-            AlertDialog(
-                onDismissRequest = { resultFile = null },
-                title = { Text("Completed! 🎉") },
-                text = { Text("Output saved: ${file.name} (${file.length() / 1024} KB)") },
-                confirmButton = {
-                    Button(onClick = {
-                        val shareIntent = Intent(Intent.ACTION_SEND).apply {
-                            type = mime
-                            putExtra(Intent.EXTRA_STREAM, shareableUri)
-                            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                        }
-                        context.startActivity(Intent.createChooser(shareIntent, "Share Output File"))
-                    }) {
-                        Text("Share / Save")
-                    }
-                },
-                dismissButton = {
-                    TextButton(onClick = { resultFile = null }) { Text("Done") }
-                }
+            ProcessCompleteDownloadDialog(
+                file = file,
+                title = "Processing Complete! 🎉",
+                onDismiss = { resultFile = null }
             )
         }
 
         resultFiles?.let { files ->
+            var downloadedCount by remember { mutableIntStateOf(0) }
             AlertDialog(
                 onDismissRequest = { resultFiles = null },
-                title = { Text("Extraction Complete! 🖼️") },
-                text = { Text("Extracted ${files.size} image files successfully.") },
-                confirmButton = {
-                    Button(onClick = {
-                        val first = files.firstOrNull() ?: return@Button
-                        val uri = storageManager.getShareableUri(first)
-                        val shareIntent = Intent(Intent.ACTION_SEND).apply {
-                            type = "image/png"
-                            putExtra(Intent.EXTRA_STREAM, uri)
-                            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                title = { Text("Extraction Complete! 🖼️", fontWeight = FontWeight.Bold) },
+                text = {
+                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Text("Extracted ${files.size} image files successfully.")
+
+                        if (downloadedCount > 0) {
+                            Text(
+                                "Downloaded $downloadedCount / ${files.size} images to Downloads folder!",
+                                color = MaterialTheme.colorScheme.primary,
+                                fontWeight = FontWeight.SemiBold
+                            )
                         }
-                        context.startActivity(Intent.createChooser(shareIntent, "Share First Image"))
-                    }) {
-                        Text("Share First Image")
+
+                        Button(
+                            onClick = {
+                                var count = 0
+                                files.forEach { f ->
+                                    val uri = storageManager.saveToPublicDownloads(f, "image/png")
+                                    if (uri != null) count++
+                                }
+                                downloadedCount = count
+                                Toast.makeText(context, "Saved $count images to Downloads/OfflinePDFStudio", Toast.LENGTH_LONG).show()
+                            },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text("Direct Download All (${files.size} Images)")
+                        }
+
+                        OutlinedButton(
+                            onClick = {
+                                val first = files.firstOrNull() ?: return@OutlinedButton
+                                val uri = storageManager.getShareableUri(first)
+                                val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                                    type = "image/png"
+                                    putExtra(Intent.EXTRA_STREAM, uri)
+                                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                                }
+                                context.startActivity(Intent.createChooser(shareIntent, "Share First Image"))
+                            },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text("Share First Image")
+                        }
                     }
                 },
-                dismissButton = {
+                confirmButton = {
                     TextButton(onClick = { resultFiles = null }) { Text("Done") }
                 }
             )

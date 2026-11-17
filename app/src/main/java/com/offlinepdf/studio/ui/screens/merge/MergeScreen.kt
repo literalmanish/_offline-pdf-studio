@@ -23,6 +23,7 @@ import com.offlinepdf.studio.core.engine.internal.PdfBoxEngineImpl
 import com.offlinepdf.studio.core.engine.model.EngineResult
 import com.offlinepdf.studio.core.engine.model.ProcessingProgress
 import com.offlinepdf.studio.core.util.FileStorageManager
+import com.offlinepdf.studio.ui.components.ProcessCompleteDownloadDialog
 import com.offlinepdf.studio.ui.components.ProcessingDialog
 import kotlinx.coroutines.launch
 import java.io.File
@@ -191,28 +192,10 @@ fun MergeScreen(
         }
 
         mergedResultFile?.let { file ->
-            val shareableUri = remember(file) { storageManager.getShareableUri(file) }
-            AlertDialog(
-                onDismissRequest = { mergedResultFile = null },
-                title = { Text("Merge Complete! 🎉") },
-                text = { Text("Your merged PDF is saved to: ${file.name} (${file.length() / 1024} KB)") },
-                confirmButton = {
-                    Button(onClick = {
-                        val shareIntent = Intent(Intent.ACTION_SEND).apply {
-                            type = "application/pdf"
-                            putExtra(Intent.EXTRA_STREAM, shareableUri)
-                            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                        }
-                        context.startActivity(Intent.createChooser(shareIntent, "Share Merged PDF"))
-                    }) {
-                        Text("Share / Save")
-                    }
-                },
-                dismissButton = {
-                    TextButton(onClick = { mergedResultFile = null }) {
-                        Text("Done")
-                    }
-                }
+            ProcessCompleteDownloadDialog(
+                file = file,
+                title = "Merge Complete! 🎉",
+                onDismiss = { mergedResultFile = null }
             )
         }
     }
