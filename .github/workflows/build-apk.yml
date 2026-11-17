@@ -3,9 +3,13 @@ name: Build Offline PDF Studio APK
 on:
   push:
     branches: [ "main", "master" ]
+    tags: [ "v*" ]
   pull_request:
     branches: [ "main", "master" ]
   workflow_dispatch:
+
+permissions:
+  contents: write
 
 jobs:
   build:
@@ -40,3 +44,12 @@ jobs:
       with:
         name: offline-pdf-studio-release-aab
         path: app/build/outputs/bundle/release/app-release.aab
+
+    - name: Publish GitHub Release
+      if: startsWith(github.ref, 'refs/tags/v')
+      uses: softprops/action-gh-release@v2
+      with:
+        files: |
+          app/build/outputs/apk/debug/app-debug.apk
+          app/build/outputs/bundle/release/app-release.aab
+        generate_release_notes: true
