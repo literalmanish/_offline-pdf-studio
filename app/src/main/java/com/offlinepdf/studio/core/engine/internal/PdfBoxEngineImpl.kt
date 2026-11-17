@@ -24,6 +24,8 @@ import com.tom_roush.pdfbox.pdmodel.PDResources
 import com.tom_roush.pdfbox.pdmodel.common.PDRectangle
 import com.tom_roush.pdfbox.pdmodel.encryption.AccessPermission
 import com.tom_roush.pdfbox.pdmodel.encryption.StandardProtectionPolicy
+import com.tom_roush.pdfbox.pdmodel.font.PDFont
+import com.tom_roush.pdfbox.pdmodel.font.PDType0Font
 import com.tom_roush.pdfbox.pdmodel.font.PDType1Font
 import com.tom_roush.pdfbox.pdmodel.graphics.image.JPEGFactory
 import com.tom_roush.pdfbox.pdmodel.graphics.image.LosslessFactory
@@ -381,9 +383,11 @@ class PdfBoxEngineImpl(
     ): EngineResult<File> = withContext(Dispatchers.IO) {
         val temp = storageManager.copyToTempFile(sourceUri, "nup_")
         val outputFile = storageManager.createOutputFile(outputBaseName)
+        var pfd: ParcelFileDescriptor? = null
+        var renderer: PdfRenderer? = null
         try {
-            val pfd = ParcelFileDescriptor.open(temp, ParcelFileDescriptor.MODE_READ_ONLY)
-            val renderer = PdfRenderer(pfd)
+            pfd = ParcelFileDescriptor.open(temp, ParcelFileDescriptor.MODE_READ_ONLY)
+            renderer = PdfRenderer(pfd)
             val totalPages = renderer.pageCount
 
             PDDocument().use { targetDoc ->
@@ -423,14 +427,14 @@ class PdfBoxEngineImpl(
                     bmp1.recycle()
                     i += 2
                 }
-                renderer.close()
-                pfd.close()
                 targetDoc.save(outputFile)
             }
             EngineResult.Success(outputFile)
-        } catch (e: Exception) {
-            EngineResult.Error(e, "N-Up failed: ${e.localizedMessage}")
+        } catch (t: Throwable) {
+            EngineResult.Error(Exception(t), "N-Up failed: ${t.localizedMessage ?: "Memory or processing error"}")
         } finally {
+            try { renderer?.close() } catch (_: Throwable) {}
+            try { pfd?.close() } catch (_: Throwable) {}
             temp.delete()
         }
     }
@@ -477,9 +481,11 @@ class PdfBoxEngineImpl(
     ): EngineResult<List<File>> = withContext(Dispatchers.IO) {
         val temp = storageManager.copyToTempFile(sourceUri, "p2img_")
         val outputFiles = mutableListOf<File>()
+        var pfd: ParcelFileDescriptor? = null
+        var renderer: PdfRenderer? = null
         try {
-            val pfd = ParcelFileDescriptor.open(temp, ParcelFileDescriptor.MODE_READ_ONLY)
-            val renderer = PdfRenderer(pfd)
+            pfd = ParcelFileDescriptor.open(temp, ParcelFileDescriptor.MODE_READ_ONLY)
+            renderer = PdfRenderer(pfd)
             val total = renderer.pageCount
             for (i in 0 until total) {
                 coroutineContext.ensureActive()
@@ -502,12 +508,12 @@ class PdfBoxEngineImpl(
                 bitmap.recycle()
                 outputFiles.add(imgFile)
             }
-            renderer.close()
-            pfd.close()
             EngineResult.Success(outputFiles)
-        } catch (e: Exception) {
-            EngineResult.Error(e, "PDF to Images failed: ${e.localizedMessage}")
+        } catch (t: Throwable) {
+            EngineResult.Error(Exception(t), "PDF to Images failed: ${t.localizedMessage ?: "Memory or rendering error"}")
         } finally {
+            try { renderer?.close() } catch (_: Throwable) {}
+            try { pfd?.close() } catch (_: Throwable) {}
             temp.delete()
         }
     }
@@ -585,8 +591,47 @@ class PdfBoxEngineImpl(
         try {
             PDDocument().use { doc ->
                 val lines = text.lines()
-                val font = PDType1Font.HELVETICA
-                val titleFont = PDType1Font.HELVETICA_BOLD
+                
+                // Prioritize loading system TrueType font for complete Unicode/International character support
+                val candidateFontFiles = listOf(
+                    File("/system/fonts/Roboto-Regular.ttf"),
+                    File("/system/fonts/NotoSans-Regular.ttf"),
+                    File("/system/fonts/DroidSans.ttf")
+                )
+                val systemFontFile = candidateFontFiles.firstOrNull { it.exists() && it.canRead() }
+                
+                val font: PDFont = try {
+                    if (systemFontFile != null) PDType0Font.load(doc, systemFontFile) else PDType1Font.HELVETICA
+                } catch (_: Throwable) {
+                    PDType1Font.HELVETICA
+                }
+                
+                val titleFont: PDFont = try {
+                    val boldFontFile = File("/system/fonts/Roboto-Bold.ttf")
+                    if (boldFontFile.exists() && boldFontFile.canRead()) PDType0Font.load(doc, boldFontFile) else font
+                } catch (_: Throwable) {
+                    PDType1Font.HELVETICA_BOLD
+                }
+
+                fun sanitizeLine(raw: String, targetFont: PDFont): String {
+                    val clean = raw.replace("\t", "    ")
+                    val sb = StringBuilder(clean.length)
+                    var i = 0
+                    while (i < clean.length) {
+                        val cp = clean.codePointAt(i)
+                        val charStr = String(Character.toChars(cp))
+                        try {
+                            targetFont.encode(charStr)
+                            sb.append(charStr)
+                        } catch (_: Throwable) {
+                            // Replace unsupported glyph gracefully with ? instead of stripping text
+                            sb.append('?')
+                        }
+                        i += Character.charCount(cp)
+                    }
+                    return sb.toString()
+                }
+
                 val fontSize = 11f
                 val lineHeight = 15f
                 val margin = 50f
@@ -602,7 +647,7 @@ class PdfBoxEngineImpl(
                 cs.beginText()
                 cs.setFont(titleFont, 16f)
                 cs.newLineAtOffset(margin, y)
-                cs.showText(title)
+                cs.showText(sanitizeLine(title, titleFont))
                 cs.endText()
                 y -= 30f
 
@@ -622,7 +667,7 @@ class PdfBoxEngineImpl(
                         cs.setFont(font, fontSize)
                         cs.newLineAtOffset(margin, y)
                     }
-                    val safeLine = line.replace("\t", "    ").replace("[^\\x00-\\x7F]".toRegex(), "")
+                    val safeLine = sanitizeLine(line, font)
                     cs.showText(safeLine)
                     cs.newLineAtOffset(0f, -lineHeight)
                     y -= lineHeight
@@ -632,8 +677,8 @@ class PdfBoxEngineImpl(
                 doc.save(outputFile)
             }
             EngineResult.Success(outputFile)
-        } catch (e: Exception) {
-            EngineResult.Error(e, "Text to PDF failed: ${e.localizedMessage}")
+        } catch (t: Throwable) {
+            EngineResult.Error(Exception(t), "Text to PDF failed: ${t.localizedMessage ?: "Conversion error"}")
         }
     }
 
@@ -1054,9 +1099,11 @@ class PdfBoxEngineImpl(
     ): EngineResult<File> = withContext(Dispatchers.IO) {
         val temp = storageManager.copyToTempFile(sourceUri, "gray_")
         val outputFile = storageManager.createOutputFile(outputBaseName)
+        var pfd: ParcelFileDescriptor? = null
+        var renderer: PdfRenderer? = null
         try {
-            val pfd = ParcelFileDescriptor.open(temp, ParcelFileDescriptor.MODE_READ_ONLY)
-            val renderer = PdfRenderer(pfd)
+            pfd = ParcelFileDescriptor.open(temp, ParcelFileDescriptor.MODE_READ_ONLY)
+            renderer = PdfRenderer(pfd)
             val total = renderer.pageCount
 
             PDDocument().use { targetDoc ->
@@ -1087,14 +1134,14 @@ class PdfBoxEngineImpl(
                     }
                     grayBmp.recycle()
                 }
-                renderer.close()
-                pfd.close()
                 targetDoc.save(outputFile)
             }
             EngineResult.Success(outputFile)
-        } catch (e: Exception) {
-            EngineResult.Error(e, "Grayscale conversion failed: ${e.localizedMessage}")
+        } catch (t: Throwable) {
+            EngineResult.Error(Exception(t), "Grayscale conversion failed: ${t.localizedMessage ?: "Processing error"}")
         } finally {
+            try { renderer?.close() } catch (_: Throwable) {}
+            try { pfd?.close() } catch (_: Throwable) {}
             temp.delete()
         }
     }
@@ -1107,9 +1154,11 @@ class PdfBoxEngineImpl(
     ): EngineResult<File> = withContext(Dispatchers.IO) {
         val temp = storageManager.copyToTempFile(sourceUri, "inv_")
         val outputFile = storageManager.createOutputFile(outputBaseName)
+        var pfd: ParcelFileDescriptor? = null
+        var renderer: PdfRenderer? = null
         try {
-            val pfd = ParcelFileDescriptor.open(temp, ParcelFileDescriptor.MODE_READ_ONLY)
-            val renderer = PdfRenderer(pfd)
+            pfd = ParcelFileDescriptor.open(temp, ParcelFileDescriptor.MODE_READ_ONLY)
+            renderer = PdfRenderer(pfd)
             val total = renderer.pageCount
 
             PDDocument().use { targetDoc ->
@@ -1146,14 +1195,14 @@ class PdfBoxEngineImpl(
                     }
                     invBmp.recycle()
                 }
-                renderer.close()
-                pfd.close()
                 targetDoc.save(outputFile)
             }
             EngineResult.Success(outputFile)
-        } catch (e: Exception) {
-            EngineResult.Error(e, "Invert colors failed: ${e.localizedMessage}")
+        } catch (t: Throwable) {
+            EngineResult.Error(Exception(t), "Invert colors failed: ${t.localizedMessage ?: "Processing error"}")
         } finally {
+            try { renderer?.close() } catch (_: Throwable) {}
+            try { pfd?.close() } catch (_: Throwable) {}
             temp.delete()
         }
     }
@@ -1211,7 +1260,81 @@ class PdfBoxEngineImpl(
         Pair(countA, countB)
     }
 
-    // 32. Redact Area (Blackout Sensitive Information)
+    override suspend fun compareDocumentsDetailed(uriA: Uri, uriB: Uri): PdfComparisonReport = withContext(Dispatchers.IO) {
+        val (nameA, sizeA) = storageManager.getUriMetadata(uriA)
+        val (nameB, sizeB) = storageManager.getUriMetadata(uriB)
+
+        var pageCountA = 0
+        var versionA = "1.4"
+        var titleA = "Untitled"
+        var authorA = "Unknown"
+        var isEncryptedA = false
+        var textLenA = 0
+
+        var pageCountB = 0
+        var versionB = "1.4"
+        var titleB = "Untitled"
+        var authorB = "Unknown"
+        var isEncryptedB = false
+        var textLenB = 0
+
+        val tempA = storageManager.copyToTempFile(uriA, "cmpA_")
+        try {
+            PDDocument.load(tempA).use { doc ->
+                pageCountA = doc.numberOfPages
+                versionA = doc.version.toString()
+                isEncryptedA = doc.isEncrypted
+                val info = doc.documentInformation
+                if (info != null) {
+                    titleA = info.title ?: "Untitled"
+                    authorA = info.author ?: "Unknown"
+                }
+                val stripper = PDFTextStripper()
+                stripper.endPage = 5.coerceAtMost(doc.numberOfPages)
+                textLenA = stripper.getText(doc).length
+            }
+        } catch (_: Throwable) {}
+        finally { tempA.delete() }
+
+        val tempB = storageManager.copyToTempFile(uriB, "cmpB_")
+        try {
+            PDDocument.load(tempB).use { doc ->
+                pageCountB = doc.numberOfPages
+                versionB = doc.version.toString()
+                isEncryptedB = doc.isEncrypted
+                val info = doc.documentInformation
+                if (info != null) {
+                    titleB = info.title ?: "Untitled"
+                    authorB = info.author ?: "Unknown"
+                }
+                val stripper = PDFTextStripper()
+                stripper.endPage = 5.coerceAtMost(doc.numberOfPages)
+                textLenB = stripper.getText(doc).length
+            }
+        } catch (_: Throwable) {}
+        finally { tempB.delete() }
+
+        PdfComparisonReport(
+            nameA = nameA,
+            nameB = nameB,
+            sizeA = sizeA,
+            sizeB = sizeB,
+            pageCountA = pageCountA,
+            pageCountB = pageCountB,
+            versionA = versionA,
+            versionB = versionB,
+            titleA = titleA,
+            titleB = titleB,
+            authorA = authorA,
+            authorB = authorB,
+            isEncryptedA = isEncryptedA,
+            isEncryptedB = isEncryptedB,
+            textLengthA = textLenA,
+            textLengthB = textLenB
+        )
+    }
+
+    // 32. Redact Area (Irreversible Sanitization & Blackout of Sensitive Information)
     override suspend fun redactArea(
         sourceUri: Uri,
         pageIndex: Int,
@@ -1224,30 +1347,67 @@ class PdfBoxEngineImpl(
     ): EngineResult<File> = withContext(Dispatchers.IO) {
         val temp = storageManager.copyToTempFile(sourceUri, "redact_")
         val outputFile = storageManager.createOutputFile(outputBaseName)
+        var pfd: ParcelFileDescriptor? = null
+        var renderer: PdfRenderer? = null
         try {
-            PDDocument.load(temp).use { doc ->
-                if (pageIndex in 0 until doc.numberOfPages) {
-                    onProgress(ProcessingProgress(1, 1, "Applying permanent black redaction box..."))
-                    val page = doc.getPage(pageIndex)
-                    val box = page.cropBox ?: page.mediaBox
+            onProgress(ProcessingProgress(1, 2, "Rasterizing and sanitizing sensitive page..."))
+            pfd = ParcelFileDescriptor.open(temp, ParcelFileDescriptor.MODE_READ_ONLY)
+            renderer = PdfRenderer(pfd)
+            val totalPages = renderer.pageCount
+            val targetIndex = pageIndex.coerceIn(0, (totalPages - 1).coerceAtLeast(0))
 
-                    val rectX = box.width * xRatio
-                    val rectY = box.height * yRatio
-                    val rectW = box.width * widthRatio
-                    val rectH = box.height * heightRatio
+            // 1. Render target page at 2.0x resolution for crisp output
+            val rPage = renderer.openPage(targetIndex)
+            val renderScale = 2.0f
+            val bmpW = (rPage.width * renderScale).toInt().coerceAtLeast(1)
+            val bmpH = (rPage.height * renderScale).toInt().coerceAtLeast(1)
+            val redactedBmp = Bitmap.createBitmap(bmpW, bmpH, Bitmap.Config.ARGB_8888)
+            val canvas = android.graphics.Canvas(redactedBmp)
+            canvas.drawColor(Color.WHITE)
+            rPage.render(redactedBmp, null, null, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY)
+            rPage.close()
 
-                    PDPageContentStream(doc, page, PDPageContentStream.AppendMode.APPEND, true, true).use { cs ->
-                        cs.setNonStrokingColor(0f, 0f, 0f)
-                        cs.addRect(rectX, rectY, rectW, rectH)
-                        cs.fill()
-                    }
-                }
-                doc.save(outputFile)
+            // 2. Burn solid black rectangle directly into the pixel buffer (permanently purges text/glyphs/vectors)
+            val rectLeft = (bmpW * xRatio).coerceIn(0f, bmpW.toFloat())
+            val rectTop = (bmpH * (1.0f - yRatio - heightRatio)).coerceIn(0f, bmpH.toFloat())
+            val rectRight = (rectLeft + bmpW * widthRatio).coerceAtMost(bmpW.toFloat())
+            val rectBottom = (rectTop + bmpH * heightRatio).coerceAtMost(bmpH.toFloat())
+
+            val blackPaint = Paint().apply {
+                color = Color.BLACK
+                style = Paint.Style.FILL
             }
+            canvas.drawRect(rectLeft, rectTop, rectRight, rectBottom, blackPaint)
+
+            onProgress(ProcessingProgress(2, 2, "Reconstructing secure document..."))
+
+            // 3. Rebuild document: replace target page with sanitized image, preserving all other pages as pristine vectors
+            PDDocument.load(temp).use { sourceDoc ->
+                PDDocument().use { targetDoc ->
+                    for (i in 0 until sourceDoc.numberOfPages) {
+                        if (i == targetIndex) {
+                            val origPage = sourceDoc.getPage(i)
+                            val box = origPage.cropBox ?: origPage.mediaBox
+                            val newPage = PDPage(box)
+                            targetDoc.addPage(newPage)
+                            val ximg = JPEGFactory.createFromImage(targetDoc, redactedBmp, 0.92f)
+                            PDPageContentStream(targetDoc, newPage).use { cs ->
+                                cs.drawImage(ximg, 0f, 0f, box.width, box.height)
+                            }
+                        } else {
+                            targetDoc.importPage(sourceDoc.getPage(i))
+                        }
+                    }
+                    targetDoc.save(outputFile)
+                }
+            }
+            redactedBmp.recycle()
             EngineResult.Success(outputFile)
-        } catch (e: Exception) {
-            EngineResult.Error(e, "Redaction failed: ${e.localizedMessage}")
+        } catch (t: Throwable) {
+            EngineResult.Error(Exception(t), "Redaction failed: ${t.localizedMessage ?: "Processing error"}")
         } finally {
+            try { renderer?.close() } catch (_: Throwable) {}
+            try { pfd?.close() } catch (_: Throwable) {}
             temp.delete()
         }
     }

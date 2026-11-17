@@ -59,6 +59,8 @@ fun ToolActionScreen(
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var resultMessage by remember { mutableStateOf<String?>(null) }
     var docStats by remember { mutableStateOf<DocumentStatistics?>(null) }
+    var secondUri by remember { mutableStateOf<Uri?>(null) }
+    var comparisonReport by remember { mutableStateOf<PdfComparisonReport?>(null) }
 
     // Parameters for tools
     var paramText1 by remember { mutableStateOf("") }
@@ -95,6 +97,14 @@ fun ToolActionScreen(
                     docStats = stats
                 }
             }
+        }
+    }
+
+    val secondPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        if (uri != null) {
+            secondUri = uri
         }
     }
 
@@ -149,7 +159,93 @@ fun ToolActionScreen(
             }
 
             // File Pickers
-            if (toolId == "images_to_pdf") {
+            if (toolId == "compare") {
+                // Document A
+                Button(
+                    onClick = { singlePickerLauncher.launch(arrayOf("application/pdf")) },
+                    modifier = Modifier.fillMaxWidth().height(52.dp),
+                    shape = RoundedCornerShape(14.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = PinkAccent, contentColor = androidx.compose.ui.graphics.Color.Black)
+                ) {
+                    Icon(Icons.Default.FileOpen, contentDescription = null)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        if (selectedUri == null) "Select First Document (A)" else "Change Document A",
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+
+                selectedUri?.let { uri ->
+                    val (name, size) = remember(uri) { storageManager.getUriMetadata(uri) }
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(14.dp),
+                        colors = CardDefaults.cardColors(containerColor = DarkToolCard),
+                        border = BorderStroke(1.dp, BorderDark)
+                    ) {
+                        Column(modifier = Modifier.padding(14.dp)) {
+                            Text("📄 Doc A: $name", fontWeight = FontWeight.SemiBold, color = AppTheme.heading)
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text("${size / 1024} KB", style = MaterialTheme.typography.bodySmall, color = SecondaryText)
+                        }
+                    }
+                }
+
+                // Document B
+                Button(
+                    onClick = { secondPickerLauncher.launch(arrayOf("application/pdf")) },
+                    modifier = Modifier.fillMaxWidth().height(52.dp),
+                    shape = RoundedCornerShape(14.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = PinkAccent, contentColor = androidx.compose.ui.graphics.Color.Black)
+                ) {
+                    Icon(Icons.Default.FileOpen, contentDescription = null)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        if (secondUri == null) "Select Second Document (B)" else "Change Document B",
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+
+                secondUri?.let { uri ->
+                    val (name, size) = remember(uri) { storageManager.getUriMetadata(uri) }
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(14.dp),
+                        colors = CardDefaults.cardColors(containerColor = DarkToolCard),
+                        border = BorderStroke(1.dp, BorderDark)
+                    ) {
+                        Column(modifier = Modifier.padding(14.dp)) {
+                            Text("📄 Doc B: $name", fontWeight = FontWeight.SemiBold, color = AppTheme.heading)
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text("${size / 1024} KB", style = MaterialTheme.typography.bodySmall, color = SecondaryText)
+                        }
+                    }
+                }
+
+                // Comparison Report Card
+                comparisonReport?.let { report ->
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(16.dp),
+                        colors = CardDefaults.cardColors(containerColor = DarkToolCard),
+                        border = BorderStroke(1.dp, BorderDark)
+                    ) {
+                        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Text("🔍 Document Comparison Report", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = AppTheme.heading)
+                            HorizontalDivider(color = BorderDark)
+                            Text("• Document A: ${report.nameA} (${report.sizeA / 1024} KB)", fontWeight = FontWeight.Medium, color = AppTheme.heading)
+                            Text("• Document B: ${report.nameB} (${report.sizeB / 1024} KB)", fontWeight = FontWeight.Medium, color = AppTheme.heading)
+                            HorizontalDivider(color = BorderDark)
+                            Text("• Pages: Doc A = ${report.pageCountA} | Doc B = ${report.pageCountB} ${if (report.pageCountA == report.pageCountB) "✅ Match" else "⚠️ Different"}", color = SecondaryText)
+                            Text("• PDF Version: Doc A = v${report.versionA} | Doc B = v${report.versionB}", color = SecondaryText)
+                            Text("• Title: Doc A = \"${report.titleA}\" | Doc B = \"${report.titleB}\"", color = SecondaryText)
+                            Text("• Author: Doc A = \"${report.authorA}\" | Doc B = \"${report.authorB}\"", color = SecondaryText)
+                            Text("• Encryption: Doc A = ${if (report.isEncryptedA) "Protected" else "None"} | Doc B = ${if (report.isEncryptedB) "Protected" else "None"}", color = SecondaryText)
+                            Text("• Text Sample: Doc A = ${report.textLengthA} chars | Doc B = ${report.textLengthB} chars ${if (report.textLengthA == report.textLengthB) "✅ Identical" else "⚠️ Content Differs"}", color = SecondaryText)
+                        }
+                    }
+                }
+            } else if (toolId == "images_to_pdf") {
                 Button(
                     onClick = { imagePickerLauncher.launch("image/*") },
                     modifier = Modifier.fillMaxWidth().height(52.dp),
@@ -219,6 +315,15 @@ fun ToolActionScreen(
 
             // Tool-Specific Parameter Inputs
             when (toolId) {
+                "duplicate" -> {
+                    OutlinedTextField(
+                        value = paramText1,
+                        onValueChange = { paramText1 = it },
+                        label = { Text("Pages to Duplicate (e.g. 1, 2)") },
+                        placeholder = { Text("Leave blank to clone all pages") },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
                 "rotate" -> {
                     Text("Select Rotation Angle:", fontWeight = FontWeight.SemiBold)
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -425,6 +530,33 @@ fun ToolActionScreen(
                             val progressCallback: (ProcessingProgress) -> Unit = { processingProgress = it }
 
                             when (toolId) {
+                                "duplicate" -> {
+                                    if (uri == null) return@launch
+                                    val total = engine.getPageCount(uri)
+                                    val dupIndices = if (paramText1.isBlank()) {
+                                        (0 until total).toList()
+                                    } else {
+                                        paramText1.split(",").mapNotNull { it.trim().toIntOrNull()?.minus(1) }.filter { it in 0 until total }
+                                    }
+                                    val res = engine.duplicatePages(uri, dupIndices, "duplicated", progressCallback)
+                                    processingProgress = null
+                                    when (res) {
+                                        is EngineResult.Success -> resultFile = res.data
+                                        is EngineResult.Error -> errorMessage = res.userMessage
+                                    }
+                                }
+                                "compare" -> {
+                                    val uriA = selectedUri
+                                    val uriB = secondUri
+                                    if (uriA == null || uriB == null) {
+                                        errorMessage = "Please select both Document A and Document B to compare."
+                                        return@launch
+                                    }
+                                    processingProgress = ProcessingProgress(1, 2, "Comparing documents...")
+                                    val report = engine.compareDocumentsDetailed(uriA, uriB)
+                                    processingProgress = null
+                                    comparisonReport = report
+                                }
                                 "rotate" -> {
                                     if (uri == null) return@launch
                                     val angle = if (selectedOption == 0) 90 else selectedOption
@@ -733,7 +865,8 @@ fun ToolActionScreen(
                         disabledContainerColor = DarkSecondaryBg,
                         disabledContentColor = SecondaryText
                     ),
-                    enabled = (selectedUri != null || toolId == "images_to_pdf" || toolId == "text_to_pdf")
+                    enabled = (toolId == "compare" && selectedUri != null && secondUri != null) ||
+                              (toolId != "compare" && (selectedUri != null || toolId == "images_to_pdf" || toolId == "text_to_pdf"))
                 ) {
                     Text(tool?.title ?: "Process Document", fontWeight = FontWeight.Bold)
                 }

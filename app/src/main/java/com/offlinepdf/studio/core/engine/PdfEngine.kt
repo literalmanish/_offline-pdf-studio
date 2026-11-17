@@ -246,6 +246,11 @@ interface PdfEngine {
         uriB: Uri
     ): Pair<Int, Int>
 
+    suspend fun compareDocumentsDetailed(
+        uriA: Uri,
+        uriB: Uri
+    ): PdfComparisonReport
+
     // 32. Redact Area (Blackout sensitive information)
     suspend fun redactArea(
         sourceUri: Uri,

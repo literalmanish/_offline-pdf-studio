@@ -68,6 +68,25 @@ data class DocumentStatistics(
     val fileSizeBytes: Long
 )
 
+data class PdfComparisonReport(
+    val nameA: String,
+    val nameB: String,
+    val sizeA: Long,
+    val sizeB: Long,
+    val pageCountA: Int,
+    val pageCountB: Int,
+    val versionA: String,
+    val versionB: String,
+    val titleA: String,
+    val titleB: String,
+    val authorA: String,
+    val authorB: String,
+    val isEncryptedA: Boolean,
+    val isEncryptedB: Boolean,
+    val textLengthA: Int,
+    val textLengthB: Int
+)
+
 enum class StandardStamp(val label: String, val colorHex: Long) {
     CONFIDENTIAL("CONFIDENTIAL", 0xFFD32F2F),
     APPROVED("APPROVED", 0xFF2E7D32),

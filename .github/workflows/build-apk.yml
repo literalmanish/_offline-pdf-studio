@@ -30,8 +30,8 @@ jobs:
       with:
         gradle-version: '8.11.1'
 
-    - name: Build Debug APK & Release Bundle
-      run: gradle assembleDebug bundleRelease --stacktrace
+    - name: Run Unit Tests & Build Production APK/AAB
+      run: gradle test assembleDebug bundleRelease --stacktrace
 
     - name: Upload Debug APK
       uses: actions/upload-artifact@v4
