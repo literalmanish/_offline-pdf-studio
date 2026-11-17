@@ -828,7 +828,7 @@ fun ToolActionScreen(
                             },
                             modifier = Modifier.fillMaxWidth().height(48.dp),
                             shape = RoundedCornerShape(12.dp),
-                            colors = OutlinedButtonDefaults.outlinedButtonColors(contentColor = androidx.compose.ui.graphics.Color.White),
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = androidx.compose.ui.graphics.Color.White),
                             border = BorderStroke(1.dp, BorderDark)
                         ) {
                             Text("Share First Image")

@@ -250,7 +250,7 @@ fun SplitScreen(
                                 context.startActivity(Intent.createChooser(shareIntent, "Share First Part"))
                             },
                             modifier = Modifier.fillMaxWidth(),
-                            colors = OutlinedButtonDefaults.outlinedButtonColors(contentColor = Color.White),
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White),
                             border = BorderStroke(1.dp, BorderDark),
                             shape = RoundedCornerShape(12.dp)
                         ) {

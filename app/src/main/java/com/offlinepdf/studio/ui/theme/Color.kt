@@ -12,6 +12,8 @@ val PinkAccentVariant = Color(0xFFFF8DA1)
 
 val TextPrimaryDark = Color(0xFFFFFFFF)
 val TextSecondaryDark = Color(0xFFA7A7AE)
+val PrimaryText = TextPrimaryDark
+val SecondaryText = TextSecondaryDark
 val BorderDark = Color(0xFF393942)
 
 val StatusSuccess = Color(0xFF81C784)
