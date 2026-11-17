@@ -246,5 +246,40 @@ interface PdfEngine {
         uriB: Uri
     ): Pair<Int, Int>
 
-    // 32. View / Render is handled via PdfRendererHelper
+    // 32. Redact Area (Blackout sensitive information)
+    suspend fun redactArea(
+        sourceUri: Uri,
+        pageIndex: Int,
+        xRatio: Float,
+        yRatio: Float,
+        widthRatio: Float,
+        heightRatio: Float,
+        outputBaseName: String = "redacted",
+        onProgress: (ProcessingProgress) -> Unit = {}
+    ): EngineResult<File>
+
+    // 33. Bates Numbering (Legal Document Stamping)
+    suspend fun batesNumbering(
+        sourceUri: Uri,
+        prefix: String = "DOC-",
+        startNumber: Int = 1,
+        digits: Int = 4,
+        position: PageNumberPosition = PageNumberPosition.BOTTOM_RIGHT,
+        outputBaseName: String = "bates_numbered",
+        onProgress: (ProcessingProgress) -> Unit = {}
+    ): EngineResult<File>
+
+    // 34. Add Binding Margins
+    suspend fun addBindingMargin(
+        sourceUri: Uri,
+        leftMarginPoints: Float = 36f,
+        rightMarginPoints: Float = 0f,
+        outputBaseName: String = "with_binding_margin",
+        onProgress: (ProcessingProgress) -> Unit = {}
+    ): EngineResult<File>
+
+    // 35. Document Statistics
+    suspend fun getDocumentStats(sourceUri: Uri): DocumentStatistics
+
+    // 36. View & Read PDF (via PdfRendererHelper)
 }

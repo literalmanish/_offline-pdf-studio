@@ -57,7 +57,7 @@ fun HomeScreen(
                             color = MaterialTheme.colorScheme.primaryContainer
                         ) {
                             Text(
-                                text = "32 Tools",
+                                text = "36 Tools",
                                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
                                 style = MaterialTheme.typography.labelSmall,
                                 fontWeight = FontWeight.Bold,
@@ -85,7 +85,7 @@ fun HomeScreen(
             OutlinedTextField(
                 value = searchQuery,
                 onValueChange = { searchQuery = it },
-                placeholder = { Text("Search 32 offline PDF tools...") },
+                placeholder = { Text("Search 36 offline PDF tools...") },
                 leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
                 trailingIcon = {
                     if (searchQuery.isNotEmpty()) {
@@ -111,7 +111,7 @@ fun HomeScreen(
                 FilterChip(
                     selected = (selectedCategory == null),
                     onClick = { selectedCategory = null },
-                    label = { Text("All (32)") }
+                    label = { Text("All (36)") }
                 )
                 ToolCategory.entries.forEach { cat ->
                     val count = ToolCatalog.allTools.count { it.category == cat }
@@ -250,11 +250,13 @@ private fun getToolIconAndTint(name: String, cat: ToolCategory): Pair<ImageVecto
         "TextFields" -> Icons.Default.TextFields
         "Lock" -> Icons.Default.Lock
         "LockOpen" -> Icons.Default.LockOpen
+        "Layers" -> Icons.Default.Layers
         "Badge" -> Icons.Default.Badge
         "CleaningServices" -> Icons.Default.CleaningServices
         "Build" -> Icons.Default.Build
         "BrandingWatermark" -> Icons.Default.BrandingWatermark
         "FormatListNumbered" -> Icons.Default.FormatListNumbered
+        "BorderLeft" -> Icons.Default.BorderLeft
         "Title" -> Icons.Default.Title
         "Approval" -> Icons.Default.Approval
         "Draw" -> Icons.Default.Draw
@@ -262,6 +264,7 @@ private fun getToolIconAndTint(name: String, cat: ToolCategory): Pair<ImageVecto
         "Contrast" -> Icons.Default.Contrast
         "DarkMode" -> Icons.Default.DarkMode
         "DeleteSweep" -> Icons.Default.DeleteSweep
+        "Assessment" -> Icons.Default.Assessment
         "Visibility" -> Icons.Default.Visibility
         "Bookmarks" -> Icons.Default.Bookmarks
         "Compare" -> Icons.Default.Compare

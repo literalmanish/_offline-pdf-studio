@@ -54,6 +54,7 @@ fun ToolActionScreen(
     var resultFiles by remember { mutableStateOf<List<File>?>(null) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var resultMessage by remember { mutableStateOf<String?>(null) }
+    var docStats by remember { mutableStateOf<DocumentStatistics?>(null) }
 
     // Parameters for tools
     var paramText1 by remember { mutableStateOf("") }
@@ -81,6 +82,13 @@ fun ToolActionScreen(
                     } else {
                         "No bookmarks or outline entries found in this document."
                     }
+                }
+            } else if (toolId == "doc_stats") {
+                coroutineScope.launch {
+                    processingProgress = ProcessingProgress(1, 1, "Analyzing document metrics...")
+                    val stats = engine.getDocumentStats(uri)
+                    processingProgress = null
+                    docStats = stats
                 }
             }
         }
@@ -161,6 +169,27 @@ fun ToolActionScreen(
                 }
             }
 
+            // Document Statistics Card (Tool 35)
+            docStats?.let { stats ->
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f))
+                ) {
+                    Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text("📊 Document Analytics", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                        HorizontalDivider()
+                        Text("• Total Pages: ${stats.pageCount}", fontWeight = FontWeight.Medium)
+                        Text("• Word Count: ~${stats.wordCount} words")
+                        Text("• Character Count: ${stats.characterCount} chars")
+                        Text("• Embedded Images: ${stats.imageCount}")
+                        Text("• PDF Version: v${stats.pdfVersion}")
+                        Text("• Encrypted: ${if (stats.isEncrypted) "Yes (Protected)" else "No (Standard)"}")
+                        Text("• File Size: ${stats.fileSizeBytes / 1024} KB")
+                    }
+                }
+            }
+
             // Tool-Specific Parameter Inputs
             when (toolId) {
                 "rotate" -> {
@@ -185,6 +214,40 @@ fun ToolActionScreen(
                     )
                     Text("Opacity: ${(paramSlider * 100).toInt()}%")
                     Slider(value = paramSlider, onValueChange = { paramSlider = it }, valueRange = 0.1f..0.8f)
+                }
+                "bates_numbering" -> {
+                    OutlinedTextField(
+                        value = if (paramText1.isEmpty()) "DOC-" else paramText1,
+                        onValueChange = { paramText1 = it },
+                        label = { Text("Bates Prefix (e.g. CASE-, DOC-)") },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    OutlinedTextField(
+                        value = if (paramText2.isEmpty()) "1" else paramText2,
+                        onValueChange = { paramText2 = it },
+                        label = { Text("Start Number") },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+                "binding_margin" -> {
+                    Text("Left Binding Margin: ${paramSlider.toInt()} points")
+                    Slider(value = paramSlider, onValueChange = { paramSlider = it }, valueRange = 18f..72f)
+                }
+                "redact" -> {
+                    Text("Blackout Placement:", fontWeight = FontWeight.SemiBold)
+                    Text(
+                        "Applies a permanent, unrecoverable black redaction box to hide sensitive numbers or private details on Page 1.",
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        listOf("Top Header", "Center Body", "Bottom Signature").forEachIndexed { idx, label ->
+                            FilterChip(
+                                selected = (selectedOption == idx),
+                                onClick = { selectedOption = idx },
+                                label = { Text(label) }
+                            )
+                        }
+                    }
                 }
                 "protect" -> {
                     OutlinedTextField(
@@ -326,284 +389,321 @@ fun ToolActionScreen(
                 }
             }
 
-            // Action Execution Button
-            Button(
-                onClick = {
-                    coroutineScope.launch {
-                        val uri = selectedUri
-                        val progressCallback: (ProcessingProgress) -> Unit = { processingProgress = it }
+            // Action Execution Button (skip if doc_stats or bookmarks which display inline)
+            if (toolId != "doc_stats" && toolId != "bookmarks") {
+                Button(
+                    onClick = {
+                        coroutineScope.launch {
+                            val uri = selectedUri
+                            val progressCallback: (ProcessingProgress) -> Unit = { processingProgress = it }
 
-                        when (toolId) {
-                            "rotate" -> {
-                                if (uri == null) return@launch
-                                val angle = if (selectedOption == 0) 90 else selectedOption
-                                val res = engine.rotatePages(uri, angle, "rotated", progressCallback)
-                                processingProgress = null
-                                when (res) {
-                                    is EngineResult.Success -> resultFile = res.data
-                                    is EngineResult.Error -> errorMessage = res.userMessage
-                                }
-                            }
-                            "reverse" -> {
-                                if (uri == null) return@launch
-                                val res = engine.reversePages(uri, "reversed", progressCallback)
-                                processingProgress = null
-                                when (res) {
-                                    is EngineResult.Success -> resultFile = res.data
-                                    is EngineResult.Error -> errorMessage = res.userMessage
-                                }
-                            }
-                            "watermark" -> {
-                                if (uri == null || paramText1.isBlank()) {
-                                    errorMessage = "Please enter watermark text."
-                                    return@launch
-                                }
-                                val res = engine.addWatermark(uri, paramText1, WatermarkPosition.CENTER_DIAGONAL, paramSlider, "watermarked", progressCallback)
-                                processingProgress = null
-                                when (res) {
-                                    is EngineResult.Success -> resultFile = res.data
-                                    is EngineResult.Error -> errorMessage = res.userMessage
-                                }
-                            }
-                            "protect" -> {
-                                if (uri == null || paramText1.isBlank()) {
-                                    errorMessage = "Please enter an encryption password."
-                                    return@launch
-                                }
-                                val res = engine.protectPdf(uri, paramText1, paramText1, "protected", progressCallback)
-                                processingProgress = null
-                                when (res) {
-                                    is EngineResult.Success -> resultFile = res.data
-                                    is EngineResult.Error -> errorMessage = res.userMessage
-                                }
-                            }
-                            "unlock" -> {
-                                if (uri == null || paramText1.isBlank()) {
-                                    errorMessage = "Please enter the PDF password."
-                                    return@launch
-                                }
-                                val res = engine.unlockPdf(uri, paramText1, "unlocked", progressCallback)
-                                processingProgress = null
-                                when (res) {
-                                    is EngineResult.Success -> resultFile = res.data
-                                    is EngineResult.Error -> errorMessage = res.userMessage
-                                }
-                            }
-                            "edit_metadata" -> {
-                                if (uri == null) return@launch
-                                val meta = DocumentMetadata(title = paramText1, author = paramText2)
-                                val res = engine.editMetadata(uri, meta, "metadata_updated", progressCallback)
-                                processingProgress = null
-                                when (res) {
-                                    is EngineResult.Success -> resultFile = res.data
-                                    is EngineResult.Error -> errorMessage = res.userMessage
-                                }
-                            }
-                            "sanitize" -> {
-                                if (uri == null) return@launch
-                                val res = engine.sanitizeMetadata(uri, "sanitized", progressCallback)
-                                processingProgress = null
-                                when (res) {
-                                    is EngineResult.Success -> resultFile = res.data
-                                    is EngineResult.Error -> errorMessage = res.userMessage
-                                }
-                            }
-                            "flatten" -> {
-                                if (uri == null) return@launch
-                                val res = engine.flattenPdf(uri, "flattened", progressCallback)
-                                processingProgress = null
-                                when (res) {
-                                    is EngineResult.Success -> resultFile = res.data
-                                    is EngineResult.Error -> errorMessage = res.userMessage
-                                }
-                            }
-                            "grayscale" -> {
-                                if (uri == null) return@launch
-                                val res = engine.convertToGrayscale(uri, "grayscale", progressCallback)
-                                processingProgress = null
-                                when (res) {
-                                    is EngineResult.Success -> resultFile = res.data
-                                    is EngineResult.Error -> errorMessage = res.userMessage
-                                }
-                            }
-                            "invert_colors" -> {
-                                if (uri == null) return@launch
-                                val res = engine.invertColors(uri, "night_mode", progressCallback)
-                                processingProgress = null
-                                when (res) {
-                                    is EngineResult.Success -> resultFile = res.data
-                                    is EngineResult.Error -> errorMessage = res.userMessage
-                                }
-                            }
-                            "repair" -> {
-                                if (uri == null) return@launch
-                                val res = engine.repairPdf(uri, "repaired", progressCallback)
-                                processingProgress = null
-                                when (res) {
-                                    is EngineResult.Success -> resultFile = res.data
-                                    is EngineResult.Error -> errorMessage = res.userMessage
-                                }
-                            }
-                            "page_numbers" -> {
-                                if (uri == null) return@launch
-                                val pos = when (selectedOption) {
-                                    1 -> PageNumberPosition.BOTTOM_RIGHT
-                                    2 -> PageNumberPosition.TOP_CENTER
-                                    else -> PageNumberPosition.BOTTOM_CENTER
-                                }
-                                val res = engine.addPageNumbers(uri, pos, "Page {n} of {total}", 1, "numbered", progressCallback)
-                                processingProgress = null
-                                when (res) {
-                                    is EngineResult.Success -> resultFile = res.data
-                                    is EngineResult.Error -> errorMessage = res.userMessage
-                                }
-                            }
-                            "header_footer" -> {
-                                if (uri == null) return@launch
-                                val res = engine.addHeaderFooter(uri, paramText1, paramText2, "header_footer", progressCallback)
-                                processingProgress = null
-                                when (res) {
-                                    is EngineResult.Success -> resultFile = res.data
-                                    is EngineResult.Error -> errorMessage = res.userMessage
-                                }
-                            }
-                            "stamp" -> {
-                                if (uri == null) return@launch
-                                val stamp = StandardStamp.entries.getOrElse(selectedOption) { StandardStamp.CONFIDENTIAL }
-                                val res = engine.addStamp(uri, stamp, null, "stamped", progressCallback)
-                                processingProgress = null
-                                when (res) {
-                                    is EngineResult.Success -> resultFile = res.data
-                                    is EngineResult.Error -> errorMessage = res.userMessage
-                                }
-                            }
-                            "crop" -> {
-                                if (uri == null) return@launch
-                                val res = engine.cropPages(uri, paramSlider, "cropped", progressCallback)
-                                processingProgress = null
-                                when (res) {
-                                    is EngineResult.Success -> resultFile = res.data
-                                    is EngineResult.Error -> errorMessage = res.userMessage
-                                }
-                            }
-                            "nup" -> {
-                                if (uri == null) return@launch
-                                val res = engine.nUp(uri, 2, "2up_sheet", progressCallback)
-                                processingProgress = null
-                                when (res) {
-                                    is EngineResult.Success -> resultFile = res.data
-                                    is EngineResult.Error -> errorMessage = res.userMessage
-                                }
-                            }
-                            "images_to_pdf" -> {
-                                if (selectedMultiUris.isEmpty()) {
-                                    errorMessage = "Please select at least 1 image."
-                                    return@launch
-                                }
-                                val res = engine.imagesToPdf(selectedMultiUris, "photos_pdf", progressCallback)
-                                processingProgress = null
-                                when (res) {
-                                    is EngineResult.Success -> resultFile = res.data
-                                    is EngineResult.Error -> errorMessage = res.userMessage
-                                }
-                            }
-                            "pdf_to_images" -> {
-                                if (uri == null) return@launch
-                                val res = engine.pdfToImages(uri, "PNG", "pdf_pages", progressCallback)
-                                processingProgress = null
-                                when (res) {
-                                    is EngineResult.Success -> resultFiles = res.data
-                                    is EngineResult.Error -> errorMessage = res.userMessage
-                                }
-                            }
-                            "extract_images" -> {
-                                if (uri == null) return@launch
-                                val res = engine.extractImages(uri, "extracted_pic", progressCallback)
-                                processingProgress = null
-                                when (res) {
-                                    is EngineResult.Success -> resultFiles = res.data
-                                    is EngineResult.Error -> errorMessage = res.userMessage
-                                }
-                            }
-                            "extract_text" -> {
-                                if (uri == null) return@launch
-                                val res = engine.extractText(uri, "extracted_text", progressCallback)
-                                processingProgress = null
-                                when (res) {
-                                    is EngineResult.Success -> resultFile = res.data
-                                    is EngineResult.Error -> errorMessage = res.userMessage
-                                }
-                            }
-                            "text_to_pdf" -> {
-                                if (paramText2.isBlank()) {
-                                    errorMessage = "Please enter some content."
-                                    return@launch
-                                }
-                                val title = if (paramText1.isBlank()) "Document" else paramText1
-                                val res = engine.textToPdf(paramText2, title, "text_pdf", progressCallback)
-                                processingProgress = null
-                                when (res) {
-                                    is EngineResult.Success -> resultFile = res.data
-                                    is EngineResult.Error -> errorMessage = res.userMessage
-                                }
-                            }
-                            "sign" -> {
-                                if (uri == null || drawingPoints.isEmpty()) {
-                                    errorMessage = "Please draw your signature above."
-                                    return@launch
-                                }
-                                val signBmp = Bitmap.createBitmap(400, 160, Bitmap.Config.ARGB_8888)
-                                val canvas = Canvas(signBmp)
-                                val paint = Paint().apply {
-                                    color = Color.BLACK
-                                    strokeWidth = 6f
-                                    strokeCap = Paint.Cap.ROUND
-                                    isAntiAlias = true
-                                }
-                                for (i in 0 until drawingPoints.size - 1) {
-                                    val p1 = drawingPoints[i]
-                                    val p2 = drawingPoints[i + 1]
-                                    if (p1 != null && p2 != null) {
-                                        canvas.drawLine(p1.x, p1.y, p2.x, p2.y, paint)
+                            when (toolId) {
+                                "rotate" -> {
+                                    if (uri == null) return@launch
+                                    val angle = if (selectedOption == 0) 90 else selectedOption
+                                    val res = engine.rotatePages(uri, angle, "rotated", progressCallback)
+                                    processingProgress = null
+                                    when (res) {
+                                        is EngineResult.Success -> resultFile = res.data
+                                        is EngineResult.Error -> errorMessage = res.userMessage
                                     }
                                 }
-                                val res = engine.signPdf(uri, signBmp, 0, 0.6f, 0.15f, "signed", progressCallback)
-                                processingProgress = null
-                                when (res) {
-                                    is EngineResult.Success -> resultFile = res.data
-                                    is EngineResult.Error -> errorMessage = res.userMessage
+                                "reverse" -> {
+                                    if (uri == null) return@launch
+                                    val res = engine.reversePages(uri, "reversed", progressCallback)
+                                    processingProgress = null
+                                    when (res) {
+                                        is EngineResult.Success -> resultFile = res.data
+                                        is EngineResult.Error -> errorMessage = res.userMessage
+                                    }
                                 }
-                            }
-                            "delete_pages" -> {
-                                if (uri == null) return@launch
-                                val delIndices = paramText1.split(",").mapNotNull { it.trim().toIntOrNull()?.minus(1) }
-                                val total = engine.getPageCount(uri)
-                                val keepIndices = (0 until total).filter { it !in delIndices }
-                                val res = engine.reorderAndFilter(uri, keepIndices, emptyMap(), "pages_deleted", progressCallback)
-                                processingProgress = null
-                                when (res) {
-                                    is EngineResult.Success -> resultFile = res.data
-                                    is EngineResult.Error -> errorMessage = res.userMessage
+                                "bates_numbering" -> {
+                                    if (uri == null) return@launch
+                                    val prefix = if (paramText1.isBlank()) "DOC-" else paramText1
+                                    val start = paramText2.toIntOrNull() ?: 1
+                                    val res = engine.batesNumbering(uri, prefix, start, 4, PageNumberPosition.BOTTOM_RIGHT, "bates_numbered", progressCallback)
+                                    processingProgress = null
+                                    when (res) {
+                                        is EngineResult.Success -> resultFile = res.data
+                                        is EngineResult.Error -> errorMessage = res.userMessage
+                                    }
                                 }
-                            }
-                            "blank_pages" -> {
-                                if (uri == null) return@launch
-                                val posList = paramText1.split(",").mapNotNull { it.trim().toIntOrNull() }
-                                val res = engine.insertBlankPages(uri, posList, "with_blank_pages", progressCallback)
-                                processingProgress = null
-                                when (res) {
-                                    is EngineResult.Success -> resultFile = res.data
-                                    is EngineResult.Error -> errorMessage = res.userMessage
+                                "binding_margin" -> {
+                                    if (uri == null) return@launch
+                                    val margin = if (paramSlider < 18f) 36f else paramSlider
+                                    val res = engine.addBindingMargin(uri, margin, 0f, "with_binding_margin", progressCallback)
+                                    processingProgress = null
+                                    when (res) {
+                                        is EngineResult.Success -> resultFile = res.data
+                                        is EngineResult.Error -> errorMessage = res.userMessage
+                                    }
+                                }
+                                "redact" -> {
+                                    if (uri == null) return@launch
+                                    val yRatio = when (selectedOption) {
+                                        0 -> 0.88f // top
+                                        2 -> 0.12f // bottom
+                                        else -> 0.50f // center
+                                    }
+                                    val res = engine.redactArea(uri, 0, 0.2f, yRatio, 0.6f, 0.05f, "redacted", progressCallback)
+                                    processingProgress = null
+                                    when (res) {
+                                        is EngineResult.Success -> resultFile = res.data
+                                        is EngineResult.Error -> errorMessage = res.userMessage
+                                    }
+                                }
+                                "watermark" -> {
+                                    if (uri == null || paramText1.isBlank()) {
+                                        errorMessage = "Please enter watermark text."
+                                        return@launch
+                                    }
+                                    val res = engine.addWatermark(uri, paramText1, WatermarkPosition.CENTER_DIAGONAL, paramSlider, "watermarked", progressCallback)
+                                    processingProgress = null
+                                    when (res) {
+                                        is EngineResult.Success -> resultFile = res.data
+                                        is EngineResult.Error -> errorMessage = res.userMessage
+                                    }
+                                }
+                                "protect" -> {
+                                    if (uri == null || paramText1.isBlank()) {
+                                        errorMessage = "Please enter an encryption password."
+                                        return@launch
+                                    }
+                                    val res = engine.protectPdf(uri, paramText1, paramText1, "protected", progressCallback)
+                                    processingProgress = null
+                                    when (res) {
+                                        is EngineResult.Success -> resultFile = res.data
+                                        is EngineResult.Error -> errorMessage = res.userMessage
+                                    }
+                                }
+                                "unlock" -> {
+                                    if (uri == null || paramText1.isBlank()) {
+                                        errorMessage = "Please enter the PDF password."
+                                        return@launch
+                                    }
+                                    val res = engine.unlockPdf(uri, paramText1, "unlocked", progressCallback)
+                                    processingProgress = null
+                                    when (res) {
+                                        is EngineResult.Success -> resultFile = res.data
+                                        is EngineResult.Error -> errorMessage = res.userMessage
+                                    }
+                                }
+                                "edit_metadata" -> {
+                                    if (uri == null) return@launch
+                                    val meta = DocumentMetadata(title = paramText1, author = paramText2)
+                                    val res = engine.editMetadata(uri, meta, "metadata_updated", progressCallback)
+                                    processingProgress = null
+                                    when (res) {
+                                        is EngineResult.Success -> resultFile = res.data
+                                        is EngineResult.Error -> errorMessage = res.userMessage
+                                    }
+                                }
+                                "sanitize" -> {
+                                    if (uri == null) return@launch
+                                    val res = engine.sanitizeMetadata(uri, "sanitized", progressCallback)
+                                    processingProgress = null
+                                    when (res) {
+                                        is EngineResult.Success -> resultFile = res.data
+                                        is EngineResult.Error -> errorMessage = res.userMessage
+                                    }
+                                }
+                                "flatten" -> {
+                                    if (uri == null) return@launch
+                                    val res = engine.flattenPdf(uri, "flattened", progressCallback)
+                                    processingProgress = null
+                                    when (res) {
+                                        is EngineResult.Success -> resultFile = res.data
+                                        is EngineResult.Error -> errorMessage = res.userMessage
+                                    }
+                                }
+                                "grayscale" -> {
+                                    if (uri == null) return@launch
+                                    val res = engine.convertToGrayscale(uri, "grayscale", progressCallback)
+                                    processingProgress = null
+                                    when (res) {
+                                        is EngineResult.Success -> resultFile = res.data
+                                        is EngineResult.Error -> errorMessage = res.userMessage
+                                    }
+                                }
+                                "invert_colors" -> {
+                                    if (uri == null) return@launch
+                                    val res = engine.invertColors(uri, "night_mode", progressCallback)
+                                    processingProgress = null
+                                    when (res) {
+                                        is EngineResult.Success -> resultFile = res.data
+                                        is EngineResult.Error -> errorMessage = res.userMessage
+                                    }
+                                }
+                                "repair" -> {
+                                    if (uri == null) return@launch
+                                    val res = engine.repairPdf(uri, "repaired", progressCallback)
+                                    processingProgress = null
+                                    when (res) {
+                                        is EngineResult.Success -> resultFile = res.data
+                                        is EngineResult.Error -> errorMessage = res.userMessage
+                                    }
+                                }
+                                "page_numbers" -> {
+                                    if (uri == null) return@launch
+                                    val pos = when (selectedOption) {
+                                        1 -> PageNumberPosition.BOTTOM_RIGHT
+                                        2 -> PageNumberPosition.TOP_CENTER
+                                        else -> PageNumberPosition.BOTTOM_CENTER
+                                    }
+                                    val res = engine.addPageNumbers(uri, pos, "Page {n} of {total}", 1, "numbered", progressCallback)
+                                    processingProgress = null
+                                    when (res) {
+                                        is EngineResult.Success -> resultFile = res.data
+                                        is EngineResult.Error -> errorMessage = res.userMessage
+                                    }
+                                }
+                                "header_footer" -> {
+                                    if (uri == null) return@launch
+                                    val res = engine.addHeaderFooter(uri, paramText1, paramText2, "header_footer", progressCallback)
+                                    processingProgress = null
+                                    when (res) {
+                                        is EngineResult.Success -> resultFile = res.data
+                                        is EngineResult.Error -> errorMessage = res.userMessage
+                                    }
+                                }
+                                "stamp" -> {
+                                    if (uri == null) return@launch
+                                    val stamp = StandardStamp.entries.getOrElse(selectedOption) { StandardStamp.CONFIDENTIAL }
+                                    val res = engine.addStamp(uri, stamp, null, "stamped", progressCallback)
+                                    processingProgress = null
+                                    when (res) {
+                                        is EngineResult.Success -> resultFile = res.data
+                                        is EngineResult.Error -> errorMessage = res.userMessage
+                                    }
+                                }
+                                "crop" -> {
+                                    if (uri == null) return@launch
+                                    val res = engine.cropPages(uri, paramSlider, "cropped", progressCallback)
+                                    processingProgress = null
+                                    when (res) {
+                                        is EngineResult.Success -> resultFile = res.data
+                                        is EngineResult.Error -> errorMessage = res.userMessage
+                                    }
+                                }
+                                "nup" -> {
+                                    if (uri == null) return@launch
+                                    val res = engine.nUp(uri, 2, "2up_sheet", progressCallback)
+                                    processingProgress = null
+                                    when (res) {
+                                        is EngineResult.Success -> resultFile = res.data
+                                        is EngineResult.Error -> errorMessage = res.userMessage
+                                    }
+                                }
+                                "images_to_pdf" -> {
+                                    if (selectedMultiUris.isEmpty()) {
+                                        errorMessage = "Please select at least 1 image."
+                                        return@launch
+                                    }
+                                    val res = engine.imagesToPdf(selectedMultiUris, "photos_pdf", progressCallback)
+                                    processingProgress = null
+                                    when (res) {
+                                        is EngineResult.Success -> resultFile = res.data
+                                        is EngineResult.Error -> errorMessage = res.userMessage
+                                    }
+                                }
+                                "pdf_to_images" -> {
+                                    if (uri == null) return@launch
+                                    val res = engine.pdfToImages(uri, "PNG", "pdf_pages", progressCallback)
+                                    processingProgress = null
+                                    when (res) {
+                                        is EngineResult.Success -> resultFiles = res.data
+                                        is EngineResult.Error -> errorMessage = res.userMessage
+                                    }
+                                }
+                                "extract_images" -> {
+                                    if (uri == null) return@launch
+                                    val res = engine.extractImages(uri, "extracted_pic", progressCallback)
+                                    processingProgress = null
+                                    when (res) {
+                                        is EngineResult.Success -> resultFiles = res.data
+                                        is EngineResult.Error -> errorMessage = res.userMessage
+                                    }
+                                }
+                                "extract_text" -> {
+                                    if (uri == null) return@launch
+                                    val res = engine.extractText(uri, "extracted_text", progressCallback)
+                                    processingProgress = null
+                                    when (res) {
+                                        is EngineResult.Success -> resultFile = res.data
+                                        is EngineResult.Error -> errorMessage = res.userMessage
+                                    }
+                                }
+                                "text_to_pdf" -> {
+                                    if (paramText2.isBlank()) {
+                                        errorMessage = "Please enter some content."
+                                        return@launch
+                                    }
+                                    val title = if (paramText1.isBlank()) "Document" else paramText1
+                                    val res = engine.textToPdf(paramText2, title, "text_pdf", progressCallback)
+                                    processingProgress = null
+                                    when (res) {
+                                        is EngineResult.Success -> resultFile = res.data
+                                        is EngineResult.Error -> errorMessage = res.userMessage
+                                    }
+                                }
+                                "sign" -> {
+                                    if (uri == null || drawingPoints.isEmpty()) {
+                                        errorMessage = "Please draw your signature above."
+                                        return@launch
+                                    }
+                                    val signBmp = Bitmap.createBitmap(400, 160, Bitmap.Config.ARGB_8888)
+                                    val canvas = Canvas(signBmp)
+                                    val paint = Paint().apply {
+                                        color = Color.BLACK
+                                        strokeWidth = 6f
+                                        strokeCap = Paint.Cap.ROUND
+                                        isAntiAlias = true
+                                    }
+                                    for (i in 0 until drawingPoints.size - 1) {
+                                        val p1 = drawingPoints[i]
+                                        val p2 = drawingPoints[i + 1]
+                                        if (p1 != null && p2 != null) {
+                                            canvas.drawLine(p1.x, p1.y, p2.x, p2.y, paint)
+                                        }
+                                    }
+                                    val res = engine.signPdf(uri, signBmp, 0, 0.6f, 0.15f, "signed", progressCallback)
+                                    processingProgress = null
+                                    when (res) {
+                                        is EngineResult.Success -> resultFile = res.data
+                                        is EngineResult.Error -> errorMessage = res.userMessage
+                                    }
+                                }
+                                "delete_pages" -> {
+                                    if (uri == null) return@launch
+                                    val delIndices = paramText1.split(",").mapNotNull { it.trim().toIntOrNull()?.minus(1) }
+                                    val total = engine.getPageCount(uri)
+                                    val keepIndices = (0 until total).filter { it !in delIndices }
+                                    val res = engine.reorderAndFilter(uri, keepIndices, emptyMap(), "pages_deleted", progressCallback)
+                                    processingProgress = null
+                                    when (res) {
+                                        is EngineResult.Success -> resultFile = res.data
+                                        is EngineResult.Error -> errorMessage = res.userMessage
+                                    }
+                                }
+                                "blank_pages" -> {
+                                    if (uri == null) return@launch
+                                    val posList = paramText1.split(",").mapNotNull { it.trim().toIntOrNull() }
+                                    val res = engine.insertBlankPages(uri, posList, "with_blank_pages", progressCallback)
+                                    processingProgress = null
+                                    when (res) {
+                                        is EngineResult.Success -> resultFile = res.data
+                                        is EngineResult.Error -> errorMessage = res.userMessage
+                                    }
                                 }
                             }
                         }
-                    }
-                },
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp),
-                enabled = (selectedUri != null || toolId == "images_to_pdf" || toolId == "text_to_pdf")
-            ) {
-                Text("Process Document")
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    enabled = (selectedUri != null || toolId == "images_to_pdf" || toolId == "text_to_pdf")
+                ) {
+                    Text("Process Document")
+                }
             }
         }
 

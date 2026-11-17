@@ -114,7 +114,7 @@ object ToolCatalog {
             iconName = "TextFields"
         ),
 
-        // Group 3: Security & Privacy (16-20)
+        // Group 3: Security & Privacy (16-21)
         StudioTool(
             id = "protect",
             title = "Protect with Password",
@@ -129,6 +129,14 @@ object ToolCatalog {
             description = "Permanently remove password protection from an unlocked PDF",
             category = ToolCategory.SECURITY,
             iconName = "LockOpen"
+        ),
+        StudioTool(
+            id = "redact",
+            title = "Redact Sensitive Info",
+            description = "Draw permanent blackout boxes over personal data or numbers",
+            category = ToolCategory.SECURITY,
+            iconName = "Layers",
+            badge = "Privacy"
         ),
         StudioTool(
             id = "edit_metadata",
@@ -153,7 +161,7 @@ object ToolCatalog {
             iconName = "Build"
         ),
 
-        // Group 4: Design & Stamps (21-25)
+        // Group 4: Design & Stamps (22-27)
         StudioTool(
             id = "watermark",
             title = "Add Watermark",
@@ -168,6 +176,21 @@ object ToolCatalog {
             description = "Insert customizable page numbers in header or footer",
             category = ToolCategory.BRANDING,
             iconName = "FormatListNumbered"
+        ),
+        StudioTool(
+            id = "bates_numbering",
+            title = "Bates Legal Stamping",
+            description = "Sequential Bates identification numbering for legal files",
+            category = ToolCategory.BRANDING,
+            iconName = "FormatListNumbered",
+            badge = "Legal"
+        ),
+        StudioTool(
+            id = "binding_margin",
+            title = "Add Binding Margins",
+            description = "Add left or right padding for hole-punching and comb binding",
+            category = ToolCategory.BRANDING,
+            iconName = "BorderLeft"
         ),
         StudioTool(
             id = "header_footer",
@@ -192,7 +215,7 @@ object ToolCatalog {
             badge = "Sign"
         ),
 
-        // Group 5: Optimize & Color (26-29)
+        // Group 5: Optimize & Color (28-32)
         StudioTool(
             id = "compress",
             title = "Compress PDF",
@@ -222,8 +245,15 @@ object ToolCatalog {
             category = ToolCategory.OPTIMIZE,
             iconName = "DeleteSweep"
         ),
+        StudioTool(
+            id = "doc_stats",
+            title = "Document Statistics",
+            description = "Inspect word count, character count, embedded image count, and specs",
+            category = ToolCategory.OPTIMIZE,
+            iconName = "Assessment"
+        ),
 
-        // Group 6: Read & Inspect (30-32)
+        // Group 6: Read & Inspect (33-36)
         StudioTool(
             id = "viewer",
             title = "View & Read PDF",

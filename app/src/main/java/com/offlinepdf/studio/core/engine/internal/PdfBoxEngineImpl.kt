@@ -25,8 +25,6 @@ import com.tom_roush.pdfbox.pdmodel.common.PDRectangle
 import com.tom_roush.pdfbox.pdmodel.encryption.AccessPermission
 import com.tom_roush.pdfbox.pdmodel.encryption.StandardProtectionPolicy
 import com.tom_roush.pdfbox.pdmodel.font.PDType1Font
-import com.tom_roush.pdfbox.pdmodel.graphics.color.PDColor
-import com.tom_roush.pdfbox.pdmodel.graphics.color.PDDeviceRGB
 import com.tom_roush.pdfbox.pdmodel.graphics.image.JPEGFactory
 import com.tom_roush.pdfbox.pdmodel.graphics.image.LosslessFactory
 import com.tom_roush.pdfbox.pdmodel.graphics.image.PDImageXObject
@@ -38,6 +36,7 @@ import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.FileOutputStream
+import java.util.Locale
 import kotlin.coroutines.coroutineContext
 
 class PdfBoxEngineImpl(
@@ -383,7 +382,6 @@ class PdfBoxEngineImpl(
         val temp = storageManager.copyToTempFile(sourceUri, "nup_")
         val outputFile = storageManager.createOutputFile(outputBaseName)
         try {
-            // Render pages to bitmaps and place side-by-side or stacked on an A4 sheet
             val pfd = ParcelFileDescriptor.open(temp, ParcelFileDescriptor.MODE_READ_ONLY)
             val renderer = PdfRenderer(pfd)
             val totalPages = renderer.pageCount
@@ -407,7 +405,6 @@ class PdfBoxEngineImpl(
                         page2.close()
                     }
 
-                    // Combined sheet
                     val sheetWidth = PDRectangle.A4.width
                     val sheetHeight = PDRectangle.A4.height
                     val targetPage = PDPage(PDRectangle.A4)
@@ -987,7 +984,6 @@ class PdfBoxEngineImpl(
                         val stampWidth = 140f
                         val stampHeight = 36f
 
-                        // Draw stamp red/green rounded border
                         cs.setStrokingColor(0.85f, 0.1f, 0.1f)
                         cs.setLineWidth(2f)
                         cs.addRect(stampX, stampY, stampWidth, stampHeight)
@@ -1213,5 +1209,165 @@ class PdfBoxEngineImpl(
         val countA = getPageCount(uriA)
         val countB = getPageCount(uriB)
         Pair(countA, countB)
+    }
+
+    // 32. Redact Area (Blackout Sensitive Information)
+    override suspend fun redactArea(
+        sourceUri: Uri,
+        pageIndex: Int,
+        xRatio: Float,
+        yRatio: Float,
+        widthRatio: Float,
+        heightRatio: Float,
+        outputBaseName: String,
+        onProgress: (ProcessingProgress) -> Unit
+    ): EngineResult<File> = withContext(Dispatchers.IO) {
+        val temp = storageManager.copyToTempFile(sourceUri, "redact_")
+        val outputFile = storageManager.createOutputFile(outputBaseName)
+        try {
+            PDDocument.load(temp).use { doc ->
+                if (pageIndex in 0 until doc.numberOfPages) {
+                    onProgress(ProcessingProgress(1, 1, "Applying permanent black redaction box..."))
+                    val page = doc.getPage(pageIndex)
+                    val box = page.cropBox ?: page.mediaBox
+
+                    val rectX = box.width * xRatio
+                    val rectY = box.height * yRatio
+                    val rectW = box.width * widthRatio
+                    val rectH = box.height * heightRatio
+
+                    PDPageContentStream(doc, page, PDPageContentStream.AppendMode.APPEND, true, true).use { cs ->
+                        cs.setNonStrokingColor(0f, 0f, 0f)
+                        cs.addRect(rectX, rectY, rectW, rectH)
+                        cs.fill()
+                    }
+                }
+                doc.save(outputFile)
+            }
+            EngineResult.Success(outputFile)
+        } catch (e: Exception) {
+            EngineResult.Error(e, "Redaction failed: ${e.localizedMessage}")
+        } finally {
+            temp.delete()
+        }
+    }
+
+    // 33. Bates Numbering (Legal Stamping)
+    override suspend fun batesNumbering(
+        sourceUri: Uri,
+        prefix: String,
+        startNumber: Int,
+        digits: Int,
+        position: PageNumberPosition,
+        outputBaseName: String,
+        onProgress: (ProcessingProgress) -> Unit
+    ): EngineResult<File> = withContext(Dispatchers.IO) {
+        val temp = storageManager.copyToTempFile(sourceUri, "bates_")
+        val outputFile = storageManager.createOutputFile(outputBaseName)
+        try {
+            PDDocument.load(temp).use { doc ->
+                val font = PDType1Font.COURIER_BOLD
+                val total = doc.numberOfPages
+
+                for (i in 0 until total) {
+                    coroutineContext.ensureActive()
+                    onProgress(ProcessingProgress(i + 1, total, "Applying Bates stamp to page ${i + 1} of $total..."))
+                    val page = doc.getPage(i)
+                    val box = page.cropBox ?: page.mediaBox
+                    val num = startNumber + i
+                    val batesText = "$prefix${String.format(Locale.US, "%0${digits}d", num)}"
+
+                    val x = when (position) {
+                        PageNumberPosition.BOTTOM_LEFT, PageNumberPosition.TOP_LEFT -> 40f
+                        PageNumberPosition.BOTTOM_CENTER, PageNumberPosition.TOP_CENTER -> box.width / 2f - 40f
+                        PageNumberPosition.BOTTOM_RIGHT, PageNumberPosition.TOP_RIGHT -> box.width - 130f
+                    }
+                    val y = when (position) {
+                        PageNumberPosition.BOTTOM_LEFT, PageNumberPosition.BOTTOM_CENTER, PageNumberPosition.BOTTOM_RIGHT -> 30f
+                        PageNumberPosition.TOP_LEFT, PageNumberPosition.TOP_CENTER, PageNumberPosition.TOP_RIGHT -> box.height - 35f
+                    }
+
+                    PDPageContentStream(doc, page, PDPageContentStream.AppendMode.APPEND, true, true).use { cs ->
+                        cs.beginText()
+                        cs.setFont(font, 11f)
+                        cs.setNonStrokingColor(0.85f, 0f, 0f)
+                        cs.newLineAtOffset(x, y)
+                        cs.showText(batesText)
+                        cs.endText()
+                    }
+                }
+                doc.save(outputFile)
+            }
+            EngineResult.Success(outputFile)
+        } catch (e: Exception) {
+            EngineResult.Error(e, "Bates numbering failed: ${e.localizedMessage}")
+        } finally {
+            temp.delete()
+        }
+    }
+
+    // 34. Add Binding Margins
+    override suspend fun addBindingMargin(
+        sourceUri: Uri,
+        leftMarginPoints: Float,
+        rightMarginPoints: Float,
+        outputBaseName: String,
+        onProgress: (ProcessingProgress) -> Unit
+    ): EngineResult<File> = withContext(Dispatchers.IO) {
+        val temp = storageManager.copyToTempFile(sourceUri, "binding_")
+        val outputFile = storageManager.createOutputFile(outputBaseName)
+        try {
+            PDDocument.load(temp).use { doc ->
+                val total = doc.numberOfPages
+                for (i in 0 until total) {
+                    coroutineContext.ensureActive()
+                    onProgress(ProcessingProgress(i + 1, total, "Adding binding margin to page ${i + 1} of $total..."))
+                    val page = doc.getPage(i)
+                    val box = page.mediaBox
+                    val newWidth = box.width + leftMarginPoints + rightMarginPoints
+                    page.mediaBox = PDRectangle(newWidth, box.height)
+                }
+                doc.save(outputFile)
+            }
+            EngineResult.Success(outputFile)
+        } catch (e: Exception) {
+            EngineResult.Error(e, "Binding margin failed: ${e.localizedMessage}")
+        } finally {
+            temp.delete()
+        }
+    }
+
+    // 35. Document Statistics
+    override suspend fun getDocumentStats(sourceUri: Uri): DocumentStatistics = withContext(Dispatchers.IO) {
+        val temp = storageManager.copyToTempFile(sourceUri, "stats_")
+        try {
+            PDDocument.load(temp).use { doc ->
+                val pages = doc.numberOfPages
+                val text = try { PDFTextStripper().getText(doc) } catch (_: Exception) { "" }
+                val words = text.split("\\s+".toRegex()).count { it.isNotBlank() }
+                val chars = text.length
+
+                var imgCount = 0
+                for (i in 0 until pages) {
+                    val res = doc.getPage(i).resources ?: continue
+                    val names = res.xObjectNames ?: continue
+                    for (n in names) {
+                        if (res.getXObject(n) is PDImageXObject) imgCount++
+                    }
+                }
+
+                DocumentStatistics(
+                    pageCount = pages,
+                    wordCount = words,
+                    characterCount = chars,
+                    imageCount = imgCount,
+                    pdfVersion = "${doc.version}",
+                    isEncrypted = doc.isEncrypted,
+                    fileSizeBytes = temp.length()
+                )
+            }
+        } finally {
+            temp.delete()
+        }
     }
 }

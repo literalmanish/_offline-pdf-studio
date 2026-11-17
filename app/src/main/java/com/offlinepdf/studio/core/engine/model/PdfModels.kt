@@ -58,6 +58,16 @@ data class DocumentMetadata(
     val creator: String = "Offline PDF Studio"
 )
 
+data class DocumentStatistics(
+    val pageCount: Int,
+    val wordCount: Int,
+    val characterCount: Int,
+    val imageCount: Int,
+    val pdfVersion: String,
+    val isEncrypted: Boolean,
+    val fileSizeBytes: Long
+)
+
 enum class StandardStamp(val label: String, val colorHex: Long) {
     CONFIDENTIAL("CONFIDENTIAL", 0xFFD32F2F),
     APPROVED("APPROVED", 0xFF2E7D32),
