@@ -1,4 +1,4 @@
-# Offline PDF Studio (Native Android v2.1.1)
+# Offline PDF Studio (Native Android v2.1.2)
 
 A 100% offline, privacy-first Android PDF manipulation studio built with Kotlin, Jetpack Compose, Material 3, `PdfRenderer`, and `PdfBox-Android`.
 
