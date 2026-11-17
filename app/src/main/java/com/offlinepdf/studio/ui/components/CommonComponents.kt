@@ -41,8 +41,15 @@ fun AppBottomNavigationBar(
     currentRoute: String,
     onNavigate: (String) -> Unit
 ) {
+    val isDark = LocalThemeController.current.isDark
+    val navContainerColor = if (isDark) DarkBottomNav else LightBottomNav
+    val selectedIcon = if (isDark) DarkMainBg else Color.White
+    val selectedText = if (isDark) TextPrimaryDark else TextPrimaryLight
+    val unselectedColor = if (isDark) TextSecondaryDark else TextSecondaryLight
+    val indicatorColor = if (isDark) PinkAccent else PinkAccentVariant
+
     NavigationBar(
-        containerColor = DarkBottomNav,
+        containerColor = navContainerColor,
         tonalElevation = 8.dp,
         modifier = Modifier.fillMaxWidth()
     ) {
@@ -67,11 +74,11 @@ fun AppBottomNavigationBar(
                     )
                 },
                 colors = NavigationBarItemDefaults.colors(
-                    selectedIconColor = DarkMainBg,
-                    selectedTextColor = TextPrimaryDark,
-                    indicatorColor = PinkAccent,
-                    unselectedIconColor = TextSecondaryDark,
-                    unselectedTextColor = TextSecondaryDark
+                    selectedIconColor = selectedIcon,
+                    selectedTextColor = selectedText,
+                    indicatorColor = indicatorColor,
+                    unselectedIconColor = unselectedColor,
+                    unselectedTextColor = unselectedColor
                 )
             )
         }

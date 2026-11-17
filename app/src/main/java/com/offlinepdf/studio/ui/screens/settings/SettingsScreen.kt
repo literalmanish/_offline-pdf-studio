@@ -81,13 +81,23 @@ fun SettingsScreen(
                         text = "Settings",
                         fontWeight = FontWeight.Bold,
                         style = MaterialTheme.typography.titleLarge,
-                        color = TextPrimaryDark
+                        color = MaterialTheme.colorScheme.onBackground
                     )
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = DarkMainBg)
+                actions = {
+                    val themeController = LocalThemeController.current
+                    IconButton(onClick = { themeController.toggleTheme() }) {
+                        Icon(
+                            imageVector = if (themeController.isDark) Icons.Outlined.LightMode else Icons.Outlined.DarkMode,
+                            contentDescription = if (themeController.isDark) "Switch to Light Mode" else "Switch to Dark Mode",
+                            tint = if (themeController.isDark) PastelYellow else PinkAccent
+                        )
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background)
             )
         },
-        containerColor = DarkMainBg
+        containerColor = MaterialTheme.colorScheme.background
     ) { innerPadding ->
         Column(
             modifier = Modifier
@@ -102,8 +112,9 @@ fun SettingsScreen(
 
             val themeLabel = when (currentTheme) {
                 "AMOLED" -> "AMOLED Black (Pure Dark)"
+                "LIGHT" -> "Clean Light Mode"
                 "SYSTEM" -> "System Default"
-                else -> "Dark Mode (iLovePDF Style)"
+                else -> "Studio Dark Mode"
             }
             SettingsItemCard(
                 title = "Theme",
@@ -268,7 +279,8 @@ fun SettingsScreen(
                 text = {
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         listOf(
-                            "DARK" to "Dark Mode (iLovePDF Style)",
+                            "DARK" to "Studio Dark Mode",
+                            "LIGHT" to "Clean Light Mode",
                             "AMOLED" to "AMOLED Black (Pure Dark)",
                             "SYSTEM" to "System Default"
                         ).forEach { (code, label) ->

@@ -49,13 +49,23 @@ fun ToolsScreen(
                         text = "PDF Tools",
                         fontWeight = FontWeight.Bold,
                         style = MaterialTheme.typography.titleLarge,
-                        color = TextPrimaryDark
+                        color = MaterialTheme.colorScheme.onBackground
                     )
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = DarkMainBg)
+                actions = {
+                    val themeController = LocalThemeController.current
+                    IconButton(onClick = { themeController.toggleTheme() }) {
+                        Icon(
+                            imageVector = if (themeController.isDark) Icons.Outlined.LightMode else Icons.Outlined.DarkMode,
+                            contentDescription = if (themeController.isDark) "Switch to Light Mode" else "Switch to Dark Mode",
+                            tint = if (themeController.isDark) PastelYellow else PinkAccent
+                        )
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background)
             )
         },
-        containerColor = DarkMainBg
+        containerColor = MaterialTheme.colorScheme.background
     ) { innerPadding ->
         Column(
             modifier = Modifier

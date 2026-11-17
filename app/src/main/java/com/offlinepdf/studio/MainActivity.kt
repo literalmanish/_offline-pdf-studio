@@ -15,7 +15,11 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Modifier
+import com.offlinepdf.studio.core.util.AppPreferencesManager
+import com.offlinepdf.studio.ui.theme.LocalThemeController
+import com.offlinepdf.studio.ui.theme.ThemeController
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -49,15 +53,29 @@ class MainActivity : ComponentActivity() {
 
         handleIntent(intent)
 
+        val prefsManager = AppPreferencesManager(this)
+
         setContent {
-            OfflinePdfStudioTheme {
-                Surface(
-                    modifier = Modifier.fillMaxSize(),
-                    color = DarkMainBg
-                ) {
-                    AppNavigation(
-                        initialIncomingUri = incomingPdfUri
-                    )
+            var isDarkTheme by remember { mutableStateOf(prefsManager.themeMode != "LIGHT") }
+
+            CompositionLocalProvider(
+                LocalThemeController provides ThemeController(
+                    isDark = isDarkTheme,
+                    toggleTheme = {
+                        isDarkTheme = !isDarkTheme
+                        prefsManager.themeMode = if (isDarkTheme) "DARK" else "LIGHT"
+                    }
+                )
+            ) {
+                OfflinePdfStudioTheme(darkTheme = isDarkTheme) {
+                    Surface(
+                        modifier = Modifier.fillMaxSize(),
+                        color = MaterialTheme.colorScheme.background
+                    ) {
+                        AppNavigation(
+                            initialIncomingUri = incomingPdfUri
+                        )
+                    }
                 }
             }
         }
@@ -97,7 +115,7 @@ fun AppNavigation(
     val startDestination = if (initialIncomingUri != null) Screen.Viewer.route else Screen.Home.route
 
     Scaffold(
-        containerColor = DarkMainBg,
+        containerColor = MaterialTheme.colorScheme.background,
         bottomBar = {
             if (showBottomBar) {
                 AppBottomNavigationBar(

@@ -3,11 +3,22 @@ package com.offlinepdf.studio.ui.theme
 import android.app.Activity
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
+import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
+
+data class ThemeController(
+    val isDark: Boolean,
+    val toggleTheme: () -> Unit
+)
+
+val LocalThemeController = staticCompositionLocalOf {
+    ThemeController(isDark = true, toggleTheme = {})
+}
 
 private val DarkColorScheme = darkColorScheme(
     primary = PinkAccent,
@@ -25,20 +36,39 @@ private val DarkColorScheme = darkColorScheme(
     outlineVariant = BorderDark.copy(alpha = 0.5f)
 )
 
+private val LightColorScheme = lightColorScheme(
+    primary = PinkAccentVariant,
+    onPrimary = LightSecondaryBg,
+    primaryContainer = BorderLight,
+    onPrimaryContainer = TextPrimaryLight,
+    secondary = PinkAccent,
+    background = LightMainBg,
+    surface = LightSecondaryBg,
+    surfaceVariant = LightToolCard,
+    onBackground = TextPrimaryLight,
+    onSurface = TextPrimaryLight,
+    onSurfaceVariant = TextSecondaryLight,
+    outline = BorderLight,
+    outlineVariant = BorderLight.copy(alpha = 0.5f)
+)
+
 @Composable
 fun OfflinePdfStudioTheme(
+    darkTheme: Boolean = true,
     content: @Composable () -> Unit
 ) {
-    val colorScheme = DarkColorScheme
+    val colorScheme = if (darkTheme) DarkColorScheme else LightColorScheme
     val view = LocalView.current
 
     if (!view.isInEditMode) {
         SideEffect {
             val window = (view.context as? Activity)?.window ?: return@SideEffect
-            window.statusBarColor = DarkMainBg.toArgb()
-            window.navigationBarColor = DarkBottomNav.toArgb()
-            WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = false
-            WindowCompat.getInsetsController(window, view).isAppearanceLightNavigationBars = false
+            val statusBarBg = if (darkTheme) DarkMainBg else LightMainBg
+            val navBarBg = if (darkTheme) DarkBottomNav else LightBottomNav
+            window.statusBarColor = statusBarBg.toArgb()
+            window.navigationBarColor = navBarBg.toArgb()
+            WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = !darkTheme
+            WindowCompat.getInsetsController(window, view).isAppearanceLightNavigationBars = !darkTheme
         }
     }
 

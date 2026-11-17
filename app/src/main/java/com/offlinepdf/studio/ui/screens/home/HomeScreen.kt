@@ -89,26 +89,34 @@ fun HomeScreen(
                     }
                 },
                 actions = {
+                    val themeController = LocalThemeController.current
+                    IconButton(onClick = { themeController.toggleTheme() }) {
+                        Icon(
+                            imageVector = if (themeController.isDark) Icons.Outlined.LightMode else Icons.Outlined.DarkMode,
+                            contentDescription = if (themeController.isDark) "Switch to Light Mode" else "Switch to Dark Mode",
+                            tint = if (themeController.isDark) PastelYellow else PinkAccent
+                        )
+                    }
                     IconButton(onClick = { onNavigateTo(Screen.Tools) }) {
-                        Icon(Icons.Default.Search, contentDescription = "Search", tint = TextPrimaryDark)
+                        Icon(Icons.Default.Search, contentDescription = "Search", tint = MaterialTheme.colorScheme.onBackground)
                     }
                     IconButton(onClick = { onNavigateTo(Screen.Settings) }) {
                         Box(
                             modifier = Modifier
                                 .size(32.dp)
                                 .clip(CircleShape)
-                                .background(DarkSecondaryBg)
-                                .border(1.dp, BorderDark, CircleShape),
+                                .background(if (themeController.isDark) DarkSecondaryBg else BorderLight)
+                                .border(1.dp, if (themeController.isDark) BorderDark else BorderLight, CircleShape),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(Icons.Default.Settings, contentDescription = "Settings", tint = PinkAccent, modifier = Modifier.size(18.dp))
                         }
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = DarkMainBg)
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background)
             )
         },
-        containerColor = DarkMainBg
+        containerColor = MaterialTheme.colorScheme.background
     ) { innerPadding ->
         Column(
             modifier = Modifier

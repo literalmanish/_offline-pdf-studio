@@ -2,7 +2,7 @@ package com.offlinepdf.studio.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-// Premium iLovePDF-style Dark Palette
+// Offline PDF Studio Dark Palette
 val DarkMainBg = Color(0xFF151515)
 val DarkSecondaryBg = Color(0xFF202020)
 val DarkToolCard = Color(0xFF090909)
@@ -15,6 +15,15 @@ val TextSecondaryDark = Color(0xFFA7A7AE)
 val PrimaryText = TextPrimaryDark
 val SecondaryText = TextSecondaryDark
 val BorderDark = Color(0xFF393942)
+
+// Offline PDF Studio Clean Light Palette
+val LightMainBg = Color(0xFFF7F8FA)
+val LightSecondaryBg = Color(0xFFFFFFFF)
+val LightToolCard = Color(0xFFFFFFFF)
+val LightBottomNav = Color(0xFFFFFFFF)
+val TextPrimaryLight = Color(0xFF191C1E)
+val TextSecondaryLight = Color(0xFF64748B)
+val BorderLight = Color(0xFFE2E8F0)
 
 val StatusSuccess = Color(0xFF81C784)
 val StatusError = Color(0xFFE57373)
