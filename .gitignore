@@ -16,3 +16,5 @@ local.properties
 app/build
 
 build-artifacts/
+*.apk
+*.aab

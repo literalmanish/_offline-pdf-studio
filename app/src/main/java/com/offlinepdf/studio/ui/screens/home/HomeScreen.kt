@@ -92,7 +92,7 @@ fun HomeScreen(
                     IconButton(onClick = { onNavigateTo(Screen.Tools) }) {
                         Icon(Icons.Default.Search, contentDescription = "Search", tint = TextPrimaryDark)
                     }
-                    IconButton(onClick = { showProfileDialog = true }) {
+                    IconButton(onClick = { onNavigateTo(Screen.Settings) }) {
                         Box(
                             modifier = Modifier
                                 .size(32.dp)
@@ -101,7 +101,7 @@ fun HomeScreen(
                                 .border(1.dp, BorderDark, CircleShape),
                             contentAlignment = Alignment.Center
                         ) {
-                            Icon(Icons.Default.Person, contentDescription = "Profile", tint = PinkAccent, modifier = Modifier.size(18.dp))
+                            Icon(Icons.Default.Settings, contentDescription = "Settings", tint = PinkAccent, modifier = Modifier.size(18.dp))
                         }
                     }
                 },

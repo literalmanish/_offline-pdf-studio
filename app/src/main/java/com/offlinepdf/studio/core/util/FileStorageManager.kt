@@ -122,15 +122,14 @@ class FileStorageManager(private val context: Context) {
     }
 
     /**
-     * Purges temporary processing cache files older than 1 hour or manually called
+     * Purges temporary processing cache files
      */
     fun clearTempFiles() {
         try {
-            cacheProcessingDir.listFiles()?.forEach { file ->
-                if (System.currentTimeMillis() - file.lastModified() > 3600_000) {
-                    file.delete()
-                }
+            context.cacheDir.listFiles()?.forEach { file ->
+                file.deleteRecursively()
             }
+            cacheProcessingDir.mkdirs()
         } catch (_: Exception) {}
     }
 }
