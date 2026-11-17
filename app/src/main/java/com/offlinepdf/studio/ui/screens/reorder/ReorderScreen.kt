@@ -121,9 +121,6 @@ fun ReorderScreen(
                     contentColor = Color.White
                 )
             ) {
-                    contentColor = Color.Black
-                )
-            ) {
                 Icon(Icons.Default.UploadFile, contentDescription = null)
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
