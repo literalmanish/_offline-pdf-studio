@@ -1,5 +1,6 @@
 package com.offlinepdf.studio.ui.theme
 
+import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 
 // ==========================================
@@ -45,32 +46,32 @@ val DarkSuccess = Color(0xFF36B878)
 val DarkError = Color(0xFFFF646B)
 
 // ==========================================
-// Compatibility Aliases for App Screens
+// Compatibility Dynamic Theme-Aware Aliases
 // ==========================================
-val DarkMainBg = DarkBg
-val DarkSecondaryBg = DarkSurface
-val DarkToolCard = DarkSurface2
-val DarkBottomNav = DarkSurface
-val PinkAccent = DarkPrimary
-val PinkAccentVariant = DarkPrimaryHover
+val DarkMainBg: Color @Composable get() = AppTheme.bg
+val DarkSecondaryBg: Color @Composable get() = AppTheme.surface
+val DarkToolCard: Color @Composable get() = AppTheme.surface
+val DarkBottomNav: Color @Composable get() = AppTheme.surface
+val PinkAccent: Color @Composable get() = AppTheme.primary
+val PinkAccentVariant: Color @Composable get() = AppTheme.primaryHover
 
-val TextPrimaryDark = DarkHeading
-val TextSecondaryDark = DarkText
-val PrimaryText = DarkHeading
-val SecondaryText = DarkMuted
-val BorderDark = DarkBorder
+val TextPrimaryDark: Color @Composable get() = AppTheme.heading
+val TextSecondaryDark: Color @Composable get() = AppTheme.muted
+val PrimaryText: Color @Composable get() = AppTheme.heading
+val SecondaryText: Color @Composable get() = AppTheme.muted
+val BorderDark: Color @Composable get() = AppTheme.border
 
-val LightMainBg = LightBg
-val LightSecondaryBg = LightSurface
-val LightToolCard = LightSurface2
-val LightBottomNav = LightSurface
-val TextPrimaryLight = LightHeading
-val TextSecondaryLight = LightText
-val BorderLight = LightBorder
+val LightMainBg: Color @Composable get() = LightBg
+val LightSecondaryBg: Color @Composable get() = LightSurface
+val LightToolCard: Color @Composable get() = LightSurface2
+val LightBottomNav: Color @Composable get() = LightSurface
+val TextPrimaryLight: Color @Composable get() = LightHeading
+val TextSecondaryLight: Color @Composable get() = LightText
+val BorderLight: Color @Composable get() = LightBorder
 
-val StatusSuccess = DarkSuccess
-val StatusError = DarkError
-val StatusWarning = DarkAccent
+val StatusSuccess: Color @Composable get() = AppTheme.success
+val StatusError: Color @Composable get() = AppTheme.error
+val StatusWarning: Color @Composable get() = AppTheme.accent
 
 // Pastel Accents for Tool Icons
 val PastelRed = Color(0xFFFF8A80)

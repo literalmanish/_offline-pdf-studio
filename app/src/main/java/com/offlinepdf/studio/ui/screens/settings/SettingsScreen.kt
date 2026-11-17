@@ -39,6 +39,7 @@ fun SettingsScreen(
     val context = LocalContext.current
     val storageManager = remember { FileStorageManager(context) }
     val prefsManager = remember { AppPreferencesManager(context) }
+    val themeController = LocalThemeController.current
 
     var cacheSizeKb by remember { mutableLongStateOf(0L) }
     var documentsCount by remember { mutableIntStateOf(0) }
@@ -54,7 +55,7 @@ fun SettingsScreen(
     var showClearDocsConfirm by remember { mutableStateOf(false) }
 
     // State bindings
-    var currentTheme by remember { mutableStateOf(prefsManager.themeMode) }
+    var currentTheme by remember(themeController.currentMode) { mutableStateOf(themeController.currentMode) }
     var currentLanguage by remember { mutableStateOf(prefsManager.language) }
     var currentCompression by remember { mutableStateOf(prefsManager.defaultCompression) }
     var currentPageSize by remember { mutableStateOf(prefsManager.defaultPageSize) }
@@ -289,7 +290,7 @@ fun SettingsScreen(
                                     .fillMaxWidth()
                                     .clickable {
                                         currentTheme = code
-                                        prefsManager.themeMode = code
+                                        themeController.setThemeMode(code)
                                         showThemeDialog = false
                                         Toast.makeText(context, "Theme set to $label", Toast.LENGTH_SHORT).show()
                                     }
@@ -300,7 +301,7 @@ fun SettingsScreen(
                                     selected = (currentTheme == code),
                                     onClick = {
                                         currentTheme = code
-                                        prefsManager.themeMode = code
+                                        themeController.setThemeMode(code)
                                         showThemeDialog = false
                                     },
                                     colors = RadioButtonDefaults.colors(selectedColor = PinkAccent, unselectedColor = TextSecondaryDark)

@@ -88,20 +88,20 @@ fun ReorderScreen(
     }
 
     Scaffold(
-        containerColor = DarkMainBg,
-        contentColor = Color.White,
+        containerColor = MaterialTheme.colorScheme.background,
+        contentColor = MaterialTheme.colorScheme.onBackground,
         topBar = {
             TopAppBar(
-                title = { Text("Reorder & Delete Pages", fontWeight = FontWeight.Bold, color = Color.White) },
+                title = { Text("Reorder & Delete Pages", fontWeight = FontWeight.Bold, color = AppTheme.heading) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color.White)
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = AppTheme.heading)
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = DarkMainBg,
-                    titleContentColor = Color.White,
-                    navigationIconContentColor = Color.White
+                    containerColor = MaterialTheme.colorScheme.background,
+                    titleContentColor = AppTheme.heading,
+                    navigationIconContentColor = AppTheme.heading
                 )
             )
         }
@@ -118,6 +118,9 @@ fun ReorderScreen(
                 shape = RoundedCornerShape(14.dp),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = PinkAccent,
+                    contentColor = Color.White
+                )
+            ) {
                     contentColor = Color.Black
                 )
             ) {
@@ -238,7 +241,7 @@ fun ReorderScreen(
             AlertDialog(
                 onDismissRequest = { errorMessage = null },
                 containerColor = DarkSecondaryBg,
-                title = { Text("Notice", color = Color.White) },
+                title = { Text("Notice", color = AppTheme.heading) },
                 text = { Text(error, color = SecondaryText) },
                 confirmButton = {
                     TextButton(onClick = { errorMessage = null }) {
@@ -300,7 +303,7 @@ private fun PageThumbnailCard(
                             .rotate(item.rotationDegrees.toFloat())
                     )
                 } else {
-                    Text("P. ${item.displayIndex}", color = Color.White)
+                    Text("P. ${item.displayIndex}", color = AppTheme.heading)
                 }
 
                 if (item.isMarkedForDeletion) {
@@ -317,7 +320,7 @@ private fun PageThumbnailCard(
                 "Page ${item.displayIndex}",
                 style = MaterialTheme.typography.bodySmall,
                 fontWeight = FontWeight.Bold,
-                color = Color.White
+                color = AppTheme.heading
             )
 
             Row(
@@ -328,7 +331,7 @@ private fun PageThumbnailCard(
                     Icon(
                         Icons.AutoMirrored.Filled.ArrowBack,
                         contentDescription = "Move Left",
-                        tint = if (canMoveLeft) Color.White else BorderDark,
+                        tint = if (canMoveLeft) AppTheme.heading else BorderDark,
                         modifier = Modifier.size(16.dp)
                     )
                 }
@@ -344,7 +347,7 @@ private fun PageThumbnailCard(
                     Icon(
                         Icons.AutoMirrored.Filled.ArrowBack,
                         contentDescription = "Move Right",
-                        tint = if (canMoveRight) Color.White else BorderDark,
+                        tint = if (canMoveRight) AppTheme.heading else BorderDark,
                         modifier = Modifier.size(16.dp).rotate(180f)
                     )
                 }

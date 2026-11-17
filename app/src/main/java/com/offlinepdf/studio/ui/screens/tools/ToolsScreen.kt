@@ -116,7 +116,7 @@ fun ToolsScreen(
                     label = { Text("All (${ToolCatalog.allTools.size})") },
                     colors = FilterChipDefaults.filterChipColors(
                         selectedContainerColor = PinkAccent,
-                        selectedLabelColor = DarkMainBg,
+                        selectedLabelColor = Color.White,
                         containerColor = DarkSecondaryBg,
                         labelColor = TextSecondaryDark
                     ),
@@ -137,7 +137,7 @@ fun ToolsScreen(
                         label = { Text("${cat.title} ($count)") },
                         colors = FilterChipDefaults.filterChipColors(
                             selectedContainerColor = PinkAccent,
-                            selectedLabelColor = DarkMainBg,
+                            selectedLabelColor = Color.White,
                             containerColor = DarkSecondaryBg,
                             labelColor = TextSecondaryDark
                         ),

@@ -89,20 +89,20 @@ fun ViewerScreen(
     }
 
     Scaffold(
-        containerColor = DarkMainBg,
-        contentColor = Color.White,
+        containerColor = MaterialTheme.colorScheme.background,
+        contentColor = MaterialTheme.colorScheme.onBackground,
         topBar = {
             TopAppBar(
                 title = {
                     Text(
                         if (totalPages > 0) "Page ${currentPageIndex + 1} of $totalPages" else "PDF Viewer",
                         fontWeight = FontWeight.Bold,
-                        color = Color.White
+                        color = AppTheme.heading
                     )
                 },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color.White)
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = AppTheme.heading)
                     }
                 },
                 actions = {
@@ -111,16 +111,16 @@ fun ViewerScreen(
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = DarkMainBg,
-                    titleContentColor = Color.White,
-                    navigationIconContentColor = Color.White
+                    containerColor = MaterialTheme.colorScheme.background,
+                    titleContentColor = AppTheme.heading,
+                    navigationIconContentColor = AppTheme.heading
                 )
             )
         },
         bottomBar = {
             if (totalPages > 1) {
                 Surface(
-                    color = DarkBottomNav,
+                    color = AppTheme.surface,
                     tonalElevation = 4.dp
                 ) {
                     Row(
@@ -137,7 +137,7 @@ fun ViewerScreen(
                             Icon(
                                 Icons.Default.NavigateBefore,
                                 contentDescription = "Previous Page",
-                                tint = if (currentPageIndex > 0) Color.White else BorderDark
+                                tint = if (currentPageIndex > 0) AppTheme.heading else BorderDark
                             )
                         }
 
@@ -145,7 +145,7 @@ fun ViewerScreen(
                             text = "${currentPageIndex + 1} / $totalPages",
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.SemiBold,
-                            color = Color.White
+                            color = AppTheme.heading
                         )
 
                         IconButton(
@@ -155,7 +155,7 @@ fun ViewerScreen(
                             Icon(
                                 Icons.Default.NavigateNext,
                                 contentDescription = "Next Page",
-                                tint = if (currentPageIndex < totalPages - 1) Color.White else BorderDark
+                                tint = if (currentPageIndex < totalPages - 1) AppTheme.heading else BorderDark
                             )
                         }
                     }
@@ -167,14 +167,14 @@ fun ViewerScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .background(DarkMainBg),
+                .background(MaterialTheme.colorScheme.background),
             contentAlignment = Alignment.Center
         ) {
             if (activeUri == null) {
                 Button(
                     onClick = { filePickerLauncher.launch(arrayOf("application/pdf")) },
                     shape = RoundedCornerShape(14.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = PinkAccent, contentColor = Color.Black),
+                    colors = ButtonDefaults.buttonColors(containerColor = PinkAccent, contentColor = Color.White),
                     modifier = Modifier.height(52.dp)
                 ) {
                     Icon(Icons.Default.FileOpen, contentDescription = null)

@@ -107,20 +107,20 @@ fun ToolActionScreen(
     }
 
     Scaffold(
-        containerColor = DarkMainBg,
-        contentColor = androidx.compose.ui.graphics.Color.White,
+        containerColor = MaterialTheme.colorScheme.background,
+        contentColor = MaterialTheme.colorScheme.onBackground,
         topBar = {
             TopAppBar(
-                title = { Text(tool?.title ?: "PDF Tool", fontWeight = FontWeight.Bold, color = androidx.compose.ui.graphics.Color.White) },
+                title = { Text(tool?.title ?: "PDF Tool", fontWeight = FontWeight.Bold, color = AppTheme.heading) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = androidx.compose.ui.graphics.Color.White)
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = AppTheme.heading)
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = DarkMainBg,
-                    titleContentColor = androidx.compose.ui.graphics.Color.White,
-                    navigationIconContentColor = androidx.compose.ui.graphics.Color.White
+                    containerColor = MaterialTheme.colorScheme.background,
+                    titleContentColor = AppTheme.heading,
+                    navigationIconContentColor = AppTheme.heading
                 )
             )
         }
@@ -141,7 +141,7 @@ fun ToolActionScreen(
                     border = BorderStroke(1.dp, BorderDark)
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
-                        Text(it.title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = androidx.compose.ui.graphics.Color.White)
+                        Text(it.title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = AppTheme.heading)
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(it.description, style = MaterialTheme.typography.bodyMedium, color = SecondaryText)
                     }
@@ -187,7 +187,7 @@ fun ToolActionScreen(
                         border = BorderStroke(1.dp, BorderDark)
                     ) {
                         Column(modifier = Modifier.padding(14.dp)) {
-                            Text(name, fontWeight = FontWeight.SemiBold, color = androidx.compose.ui.graphics.Color.White)
+                            Text(name, fontWeight = FontWeight.SemiBold, color = AppTheme.heading)
                             Spacer(modifier = Modifier.height(2.dp))
                             Text("${size / 1024} KB", style = MaterialTheme.typography.bodySmall, color = SecondaryText)
                         }
@@ -204,9 +204,9 @@ fun ToolActionScreen(
                     border = BorderStroke(1.dp, BorderDark)
                 ) {
                     Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text("📊 Document Analytics", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = androidx.compose.ui.graphics.Color.White)
+                        Text("📊 Document Analytics", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = AppTheme.heading)
                         HorizontalDivider(color = BorderDark)
-                        Text("• Total Pages: ${stats.pageCount}", fontWeight = FontWeight.Medium, color = androidx.compose.ui.graphics.Color.White)
+                        Text("• Total Pages: ${stats.pageCount}", fontWeight = FontWeight.Medium, color = AppTheme.heading)
                         Text("• Word Count: ~${stats.wordCount} words", color = SecondaryText)
                         Text("• Character Count: ${stats.characterCount} chars", color = SecondaryText)
                         Text("• Embedded Images: ${stats.imageCount}", color = SecondaryText)
@@ -748,7 +748,7 @@ fun ToolActionScreen(
             AlertDialog(
                 onDismissRequest = { errorMessage = null },
                 containerColor = DarkSecondaryBg,
-                title = { Text("Notice", color = androidx.compose.ui.graphics.Color.White) },
+                title = { Text("Notice", color = AppTheme.heading) },
                 text = { Text(error, color = SecondaryText) },
                 confirmButton = {
                     TextButton(onClick = { errorMessage = null }) {
@@ -762,7 +762,7 @@ fun ToolActionScreen(
             AlertDialog(
                 onDismissRequest = { resultMessage = null },
                 containerColor = DarkSecondaryBg,
-                title = { Text("Result", color = androidx.compose.ui.graphics.Color.White) },
+                title = { Text("Result", color = AppTheme.heading) },
                 text = { Text(msg, color = SecondaryText) },
                 confirmButton = {
                     TextButton(onClick = { resultMessage = null }) {
@@ -785,10 +785,10 @@ fun ToolActionScreen(
             AlertDialog(
                 onDismissRequest = { resultFiles = null },
                 containerColor = DarkSecondaryBg,
-                title = { Text("Extraction Complete! 🖼️", fontWeight = FontWeight.Bold, color = androidx.compose.ui.graphics.Color.White) },
+                title = { Text("Extraction Complete! 🖼️", fontWeight = FontWeight.Bold, color = AppTheme.heading) },
                 text = {
                     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                        Text("Extracted ${files.size} image files successfully.", color = androidx.compose.ui.graphics.Color.White)
+                        Text("Extracted ${files.size} image files successfully.", color = AppTheme.text)
 
                         if (downloadedCount > 0) {
                             Text(
@@ -810,7 +810,7 @@ fun ToolActionScreen(
                             },
                             modifier = Modifier.fillMaxWidth().height(48.dp),
                             shape = RoundedCornerShape(12.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = PinkAccent, contentColor = androidx.compose.ui.graphics.Color.Black)
+                            colors = ButtonDefaults.buttonColors(containerColor = PinkAccent, contentColor = androidx.compose.ui.graphics.Color.White)
                         ) {
                             Text("Direct Download All (${files.size} Images)", fontWeight = FontWeight.Bold)
                         }
@@ -828,7 +828,7 @@ fun ToolActionScreen(
                             },
                             modifier = Modifier.fillMaxWidth().height(48.dp),
                             shape = RoundedCornerShape(12.dp),
-                            colors = ButtonDefaults.outlinedButtonColors(contentColor = androidx.compose.ui.graphics.Color.White),
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = AppTheme.heading),
                             border = BorderStroke(1.dp, BorderDark)
                         ) {
                             Text("Share First Image")

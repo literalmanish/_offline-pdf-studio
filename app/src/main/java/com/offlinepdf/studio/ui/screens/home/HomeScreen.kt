@@ -75,7 +75,7 @@ fun HomeScreen(
                             Icon(
                                 imageVector = Icons.Default.PictureAsPdf,
                                 contentDescription = null,
-                                tint = DarkMainBg,
+                                tint = Color.White,
                                 modifier = Modifier.size(20.dp)
                             )
                         }
@@ -105,8 +105,8 @@ fun HomeScreen(
                             modifier = Modifier
                                 .size(32.dp)
                                 .clip(CircleShape)
-                                .background(if (themeController.isDark) DarkSecondaryBg else BorderLight)
-                                .border(1.dp, if (themeController.isDark) BorderDark else BorderLight, CircleShape),
+                                .background(AppTheme.surface)
+                                .border(1.dp, AppTheme.border, CircleShape),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(Icons.Default.Settings, contentDescription = "Settings", tint = PinkAccent, modifier = Modifier.size(18.dp))

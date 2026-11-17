@@ -6,6 +6,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
@@ -57,18 +58,36 @@ class MainActivity : ComponentActivity() {
         val prefsManager = AppPreferencesManager(this)
 
         setContent {
-            var isDarkTheme by remember { mutableStateOf(prefsManager.themeMode != "LIGHT") }
+            val systemIsDark = isSystemInDarkTheme()
+            var themeMode by remember { mutableStateOf(prefsManager.themeMode) }
+
+            val isDarkTheme = when (themeMode) {
+                "LIGHT" -> false
+                "DARK" -> true
+                "AMOLED" -> true
+                "SYSTEM" -> systemIsDark
+                else -> true
+            }
 
             CompositionLocalProvider(
                 LocalThemeController provides ThemeController(
                     isDark = isDarkTheme,
+                    currentMode = themeMode,
+                    setThemeMode = { newMode ->
+                        themeMode = newMode
+                        prefsManager.themeMode = newMode
+                    },
                     toggleTheme = {
-                        isDarkTheme = !isDarkTheme
-                        prefsManager.themeMode = if (isDarkTheme) "DARK" else "LIGHT"
+                        val nextMode = if (isDarkTheme) "LIGHT" else "DARK"
+                        themeMode = nextMode
+                        prefsManager.themeMode = nextMode
                     }
                 )
             ) {
-                OfflinePdfStudioTheme(darkTheme = isDarkTheme) {
+                OfflinePdfStudioTheme(
+                    darkTheme = isDarkTheme,
+                    isAmoled = (themeMode == "AMOLED")
+                ) {
                     Surface(
                         modifier = Modifier.fillMaxSize(),
                         color = MaterialTheme.colorScheme.background

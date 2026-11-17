@@ -14,11 +14,13 @@ import androidx.core.view.WindowCompat
 
 data class ThemeController(
     val isDark: Boolean,
-    val toggleTheme: () -> Unit
+    val currentMode: String = "DARK",
+    val setThemeMode: (String) -> Unit = {},
+    val toggleTheme: () -> Unit = {}
 )
 
 val LocalThemeController = staticCompositionLocalOf {
-    ThemeController(isDark = true, toggleTheme = {})
+    ThemeController(isDark = true, currentMode = "DARK", setThemeMode = {}, toggleTheme = {})
 }
 
 // Dark theme mapped from user specification
@@ -36,6 +38,24 @@ private val DarkColorScheme = darkColorScheme(
     onSurfaceVariant = DarkText,
     outline = DarkBorder,
     outlineVariant = DarkBorder.copy(alpha = 0.5f),
+    error = DarkError
+)
+
+// Pure AMOLED Black theme
+private val AmoledColorScheme = darkColorScheme(
+    primary = DarkPrimary,
+    onPrimary = Color.White,
+    primaryContainer = DarkPrimaryLight,
+    onPrimaryContainer = DarkPrimaryHover,
+    secondary = DarkAccent,
+    background = Color(0xFF000000),
+    surface = Color(0xFF0D0D0D),
+    surfaceVariant = Color(0xFF161616),
+    onBackground = DarkHeading,
+    onSurface = DarkHeading,
+    onSurfaceVariant = DarkText,
+    outline = Color(0xFF262626),
+    outlineVariant = Color(0xFF262626).copy(alpha = 0.5f),
     error = DarkError
 )
 
@@ -61,6 +81,9 @@ object AppTheme {
     val isDark: Boolean
         @Composable get() = LocalThemeController.current.isDark
 
+    val isAmoled: Boolean
+        @Composable get() = LocalThemeController.current.currentMode == "AMOLED"
+
     val primary: Color
         @Composable get() = if (isDark) DarkPrimary else LightPrimary
 
@@ -68,13 +91,25 @@ object AppTheme {
         @Composable get() = if (isDark) DarkPrimaryHover else LightPrimaryHover
 
     val bg: Color
-        @Composable get() = if (isDark) DarkBg else LightBg
+        @Composable get() = when {
+            isAmoled -> Color(0xFF000000)
+            isDark -> DarkBg
+            else -> LightBg
+        }
 
     val surface: Color
-        @Composable get() = if (isDark) DarkSurface else LightSurface
+        @Composable get() = when {
+            isAmoled -> Color(0xFF0D0D0D)
+            isDark -> DarkSurface
+            else -> LightSurface
+        }
 
     val surface2: Color
-        @Composable get() = if (isDark) DarkSurface2 else LightSurface2
+        @Composable get() = when {
+            isAmoled -> Color(0xFF161616)
+            isDark -> DarkSurface2
+            else -> LightSurface2
+        }
 
     val heading: Color
         @Composable get() = if (isDark) DarkHeading else LightHeading
@@ -86,7 +121,11 @@ object AppTheme {
         @Composable get() = if (isDark) DarkMuted else LightMuted
 
     val border: Color
-        @Composable get() = if (isDark) DarkBorder else LightBorder
+        @Composable get() = when {
+            isAmoled -> Color(0xFF262626)
+            isDark -> DarkBorder
+            else -> LightBorder
+        }
 
     val accent: Color
         @Composable get() = if (isDark) DarkAccent else LightAccent
@@ -101,16 +140,29 @@ object AppTheme {
 @Composable
 fun OfflinePdfStudioTheme(
     darkTheme: Boolean = true,
+    isAmoled: Boolean = false,
     content: @Composable () -> Unit
 ) {
-    val colorScheme = if (darkTheme) DarkColorScheme else LightColorScheme
+    val colorScheme = when {
+        isAmoled -> AmoledColorScheme
+        darkTheme -> DarkColorScheme
+        else -> LightColorScheme
+    }
     val view = LocalView.current
 
     if (!view.isInEditMode) {
         SideEffect {
             val window = (view.context as? Activity)?.window ?: return@SideEffect
-            val statusBarBg = if (darkTheme) DarkBg else LightBg
-            val navBarBg = if (darkTheme) DarkSurface else LightSurface
+            val statusBarBg = when {
+                isAmoled -> Color(0xFF000000)
+                darkTheme -> DarkBg
+                else -> LightBg
+            }
+            val navBarBg = when {
+                isAmoled -> Color(0xFF0D0D0D)
+                darkTheme -> DarkSurface
+                else -> LightSurface
+            }
             window.statusBarColor = statusBarBg.toArgb()
             window.navigationBarColor = navBarBg.toArgb()
             WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = !darkTheme

@@ -41,12 +41,11 @@ fun AppBottomNavigationBar(
     currentRoute: String,
     onNavigate: (String) -> Unit
 ) {
-    val isDark = LocalThemeController.current.isDark
-    val navContainerColor = if (isDark) DarkBottomNav else LightBottomNav
-    val selectedIcon = if (isDark) DarkMainBg else Color.White
-    val selectedText = if (isDark) TextPrimaryDark else TextPrimaryLight
-    val unselectedColor = if (isDark) TextSecondaryDark else TextSecondaryLight
-    val indicatorColor = if (isDark) PinkAccent else PinkAccentVariant
+    val navContainerColor = AppTheme.surface
+    val selectedIcon = Color.White
+    val selectedText = AppTheme.heading
+    val unselectedColor = AppTheme.muted
+    val indicatorColor = AppTheme.primary
 
     NavigationBar(
         containerColor = navContainerColor,
@@ -90,8 +89,8 @@ fun PrivacyBadge(modifier: Modifier = Modifier) {
     Surface(
         modifier = modifier,
         shape = RoundedCornerShape(20.dp),
-        color = DarkSecondaryBg,
-        border = androidx.compose.foundation.BorderStroke(1.dp, BorderDark)
+        color = AppTheme.surface,
+        border = androidx.compose.foundation.BorderStroke(1.dp, AppTheme.border)
     ) {
         Row(
             modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
@@ -101,13 +100,13 @@ fun PrivacyBadge(modifier: Modifier = Modifier) {
             Icon(
                 imageVector = Icons.Default.Lock,
                 contentDescription = "Offline indicator",
-                tint = PinkAccent,
+                tint = AppTheme.primary,
                 modifier = Modifier.size(14.dp)
             )
             Text(
                 text = "100% Offline • Zero Data Leaves Device",
                 style = MaterialTheme.typography.bodyMedium,
-                color = TextPrimaryDark,
+                color = AppTheme.heading,
                 fontWeight = FontWeight.Medium
             )
         }
@@ -408,7 +407,7 @@ fun ProcessCompleteDownloadDialog(
                     shape = RoundedCornerShape(12.dp),
                     colors = ButtonDefaults.buttonColors(
                         containerColor = PinkAccent,
-                        contentColor = DarkMainBg
+                        contentColor = Color.White
                     )
                 ) {
                     Icon(Icons.Default.Download, contentDescription = null)

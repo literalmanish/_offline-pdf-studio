@@ -61,20 +61,20 @@ fun CompressScreen(
     }
 
     Scaffold(
-        containerColor = DarkMainBg,
-        contentColor = Color.White,
+        containerColor = MaterialTheme.colorScheme.background,
+        contentColor = MaterialTheme.colorScheme.onBackground,
         topBar = {
             TopAppBar(
-                title = { Text("Compress PDF", fontWeight = FontWeight.Bold, color = Color.White) },
+                title = { Text("Compress PDF", fontWeight = FontWeight.Bold, color = AppTheme.heading) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color.White)
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = AppTheme.heading)
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = DarkMainBg,
-                    titleContentColor = Color.White,
-                    navigationIconContentColor = Color.White
+                    containerColor = MaterialTheme.colorScheme.background,
+                    titleContentColor = AppTheme.heading,
+                    navigationIconContentColor = AppTheme.heading
                 )
             )
         }
@@ -91,7 +91,7 @@ fun CompressScreen(
                 onClick = { filePickerLauncher.launch(arrayOf("application/pdf")) },
                 modifier = Modifier.fillMaxWidth().height(52.dp),
                 shape = RoundedCornerShape(14.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = PinkAccent, contentColor = Color.Black)
+                colors = ButtonDefaults.buttonColors(containerColor = PinkAccent, contentColor = Color.White)
             ) {
                 Icon(Icons.Default.FileOpen, contentDescription = null)
                 Spacer(modifier = Modifier.width(8.dp))
@@ -110,7 +110,7 @@ fun CompressScreen(
                     border = BorderStroke(1.dp, BorderDark)
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
-                        Text(name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = Color.White)
+                        Text(name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = AppTheme.heading)
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
                             "Original Size: ${originalSizeBytes / 1024} KB",
@@ -120,7 +120,7 @@ fun CompressScreen(
                     }
                 }
 
-                Text("Select Compression Level:", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold, color = Color.White)
+                Text("Select Compression Level:", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold, color = AppTheme.heading)
 
                 CompressionLevel.entries.forEach { level ->
                     val isSelected = selectedLevel == level
@@ -150,7 +150,7 @@ fun CompressScreen(
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                             Column {
-                                Text(level.title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = Color.White)
+                                Text(level.title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = AppTheme.heading)
                                 Text(level.description, style = MaterialTheme.typography.bodySmall, color = SecondaryText)
                             }
                         }
@@ -175,7 +175,7 @@ fun CompressScreen(
                     },
                     modifier = Modifier.fillMaxWidth().height(52.dp),
                     shape = RoundedCornerShape(14.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = PinkAccent, contentColor = Color.Black)
+                    colors = ButtonDefaults.buttonColors(containerColor = PinkAccent, contentColor = Color.White)
                 ) {
                     Icon(Icons.Default.Compress, contentDescription = null)
                     Spacer(modifier = Modifier.width(8.dp))
@@ -192,7 +192,7 @@ fun CompressScreen(
             AlertDialog(
                 onDismissRequest = { errorMessage = null },
                 containerColor = DarkSecondaryBg,
-                title = { Text("Notice", color = Color.White) },
+                title = { Text("Notice", color = AppTheme.heading) },
                 text = { Text(error, color = SecondaryText) },
                 confirmButton = {
                     TextButton(onClick = { errorMessage = null }) {

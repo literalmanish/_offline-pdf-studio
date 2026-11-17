@@ -63,20 +63,20 @@ fun SplitScreen(
     }
 
     Scaffold(
-        containerColor = DarkMainBg,
-        contentColor = Color.White,
+        containerColor = MaterialTheme.colorScheme.background,
+        contentColor = MaterialTheme.colorScheme.onBackground,
         topBar = {
             TopAppBar(
-                title = { Text("Split PDF", fontWeight = FontWeight.Bold, color = Color.White) },
+                title = { Text("Split PDF", fontWeight = FontWeight.Bold, color = AppTheme.heading) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color.White)
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = AppTheme.heading)
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = DarkMainBg,
-                    titleContentColor = Color.White,
-                    navigationIconContentColor = Color.White
+                    containerColor = MaterialTheme.colorScheme.background,
+                    titleContentColor = AppTheme.heading,
+                    navigationIconContentColor = AppTheme.heading
                 )
             )
         }
@@ -115,7 +115,7 @@ fun SplitScreen(
                     border = BorderStroke(1.dp, BorderDark)
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
-                        Text(name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = Color.White)
+                        Text(name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = AppTheme.heading)
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
                             "Total Pages: $totalPages • ${size / 1024} KB",
@@ -137,8 +137,8 @@ fun SplitScreen(
                         unfocusedBorderColor = BorderDark,
                         focusedLabelColor = PinkAccent,
                         unfocusedLabelColor = SecondaryText,
-                        focusedTextColor = Color.White,
-                        unfocusedTextColor = Color.White,
+                        focusedTextColor = AppTheme.heading,
+                        unfocusedTextColor = AppTheme.heading,
                         cursorColor = PinkAccent
                     )
                 )
@@ -193,7 +193,7 @@ fun SplitScreen(
             AlertDialog(
                 onDismissRequest = { errorMessage = null },
                 containerColor = DarkSecondaryBg,
-                title = { Text("Notice", color = Color.White) },
+                title = { Text("Notice", color = AppTheme.heading) },
                 text = { Text(error, color = SecondaryText) },
                 confirmButton = {
                     TextButton(onClick = { errorMessage = null }) {
@@ -208,10 +208,10 @@ fun SplitScreen(
             AlertDialog(
                 onDismissRequest = { splitResultFiles = null },
                 containerColor = DarkSecondaryBg,
-                title = { Text("Split Complete! 📄", fontWeight = FontWeight.Bold, color = Color.White) },
+                title = { Text("Split Complete! 📄", fontWeight = FontWeight.Bold, color = AppTheme.heading) },
                 text = {
                     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                        Text("Successfully created ${files.size} document parts.", color = Color.White)
+                        Text("Successfully created ${files.size} document parts.", color = AppTheme.text)
 
                         if (downloadedCount > 0) {
                             Text(
@@ -232,7 +232,7 @@ fun SplitScreen(
                                 Toast.makeText(context, "Saved $count files to Downloads/OfflinePDFStudio", Toast.LENGTH_LONG).show()
                             },
                             modifier = Modifier.fillMaxWidth(),
-                            colors = ButtonDefaults.buttonColors(containerColor = PinkAccent, contentColor = Color.Black),
+                            colors = ButtonDefaults.buttonColors(containerColor = PinkAccent, contentColor = Color.White),
                             shape = RoundedCornerShape(12.dp)
                         ) {
                             Text("Direct Download All (${files.size} Parts)", fontWeight = FontWeight.Bold)
@@ -250,7 +250,7 @@ fun SplitScreen(
                                 context.startActivity(Intent.createChooser(shareIntent, "Share First Part"))
                             },
                             modifier = Modifier.fillMaxWidth(),
-                            colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White),
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = AppTheme.heading),
                             border = BorderStroke(1.dp, BorderDark),
                             shape = RoundedCornerShape(12.dp)
                         ) {

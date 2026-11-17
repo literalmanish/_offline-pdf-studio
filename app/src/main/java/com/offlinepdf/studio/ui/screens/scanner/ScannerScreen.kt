@@ -113,7 +113,7 @@ fun ScannerScreen(
             ExtendedFloatingActionButton(
                 onClick = { cameraLauncher.launch(null) },
                 containerColor = PinkAccent,
-                contentColor = Color.Black,
+                contentColor = Color.White,
                 icon = { Icon(Icons.Default.CameraAlt, contentDescription = null) },
                 text = { Text("Scan Page", fontWeight = FontWeight.Bold) },
                 shape = RoundedCornerShape(16.dp)
@@ -280,7 +280,7 @@ fun ScannerScreen(
                             },
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(12.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = PinkAccent, contentColor = DarkMainBg)
+                            colors = ButtonDefaults.buttonColors(containerColor = PinkAccent, contentColor = Color.White)
                         ) {
                             Icon(Icons.Default.PictureAsPdf, contentDescription = null)
                             Spacer(modifier = Modifier.width(8.dp))

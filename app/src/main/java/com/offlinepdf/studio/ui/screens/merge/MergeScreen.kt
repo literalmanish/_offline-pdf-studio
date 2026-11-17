@@ -61,10 +61,10 @@ fun MergeScreen(
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = TextPrimaryDark)
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = DarkMainBg)
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background)
             )
         },
-        containerColor = DarkMainBg
+        containerColor = MaterialTheme.colorScheme.background
     ) { innerPadding ->
         Column(
             modifier = Modifier
@@ -176,7 +176,7 @@ fun MergeScreen(
                     },
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = PinkAccent, contentColor = DarkMainBg),
+                    colors = ButtonDefaults.buttonColors(containerColor = PinkAccent, contentColor = androidx.compose.ui.graphics.Color.White),
                     enabled = selectedUris.size >= 2
                 ) {
                     Text("Merge ${selectedUris.size} Documents", fontWeight = FontWeight.Bold)
