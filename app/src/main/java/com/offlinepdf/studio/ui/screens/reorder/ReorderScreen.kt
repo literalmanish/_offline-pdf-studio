@@ -6,6 +6,7 @@ import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -36,6 +37,7 @@ import com.offlinepdf.studio.core.renderer.PdfRendererHelper
 import com.offlinepdf.studio.core.util.FileStorageManager
 import com.offlinepdf.studio.ui.components.ProcessCompleteDownloadDialog
 import com.offlinepdf.studio.ui.components.ProcessingDialog
+import com.offlinepdf.studio.ui.theme.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -86,14 +88,21 @@ fun ReorderScreen(
     }
 
     Scaffold(
+        containerColor = DarkMainBg,
+        contentColor = Color.White,
         topBar = {
             TopAppBar(
-                title = { Text("Reorder & Delete Pages", fontWeight = FontWeight.Bold) },
+                title = { Text("Reorder & Delete Pages", fontWeight = FontWeight.Bold, color = Color.White) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color.White)
                     }
-                }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = DarkMainBg,
+                    titleContentColor = Color.White,
+                    navigationIconContentColor = Color.White
+                )
             )
         }
     ) { innerPadding ->
@@ -105,25 +114,32 @@ fun ReorderScreen(
         ) {
             Button(
                 onClick = { filePickerLauncher.launch(arrayOf("application/pdf")) },
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp)
+                modifier = Modifier.fillMaxWidth().height(52.dp),
+                shape = RoundedCornerShape(14.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = PinkAccent,
+                    contentColor = Color.Black
+                )
             ) {
                 Icon(Icons.Default.UploadFile, contentDescription = null)
                 Spacer(modifier = Modifier.width(8.dp))
-                Text(if (selectedUri == null) "Select PDF Document" else "Choose Different PDF")
+                Text(
+                    if (selectedUri == null) "Select PDF Document" else "Choose Different PDF",
+                    fontWeight = FontWeight.Bold
+                )
             }
 
             Spacer(modifier = Modifier.height(12.dp))
 
             if (isLoadingThumbnails) {
                 Box(modifier = Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator()
+                    CircularProgressIndicator(color = PinkAccent)
                 }
             } else if (pages.isNotEmpty()) {
                 Text(
                     text = "Tap page to toggle delete. Use arrows to change order.",
                     style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = SecondaryText
                 )
                 Spacer(modifier = Modifier.height(8.dp))
 
@@ -199,11 +215,17 @@ fun ReorderScreen(
                             }
                         }
                     },
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp),
-                    enabled = remainingCount > 0
+                    modifier = Modifier.fillMaxWidth().height(52.dp),
+                    shape = RoundedCornerShape(14.dp),
+                    enabled = remainingCount > 0,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = PinkAccent,
+                        contentColor = Color.Black,
+                        disabledContainerColor = DarkSecondaryBg,
+                        disabledContentColor = SecondaryText
+                    )
                 ) {
-                    Text("Save Modified PDF ($remainingCount pages)")
+                    Text("Save Modified PDF ($remainingCount pages)", fontWeight = FontWeight.Bold)
                 }
             }
         }
@@ -215,9 +237,14 @@ fun ReorderScreen(
         errorMessage?.let { error ->
             AlertDialog(
                 onDismissRequest = { errorMessage = null },
-                title = { Text("Notice") },
-                text = { Text(error) },
-                confirmButton = { TextButton(onClick = { errorMessage = null }) { Text("OK") } }
+                containerColor = DarkSecondaryBg,
+                title = { Text("Notice", color = Color.White) },
+                text = { Text(error, color = SecondaryText) },
+                confirmButton = {
+                    TextButton(onClick = { errorMessage = null }) {
+                        Text("OK", color = PinkAccent)
+                    }
+                }
             )
         }
 
@@ -247,14 +274,14 @@ private fun PageThumbnailCard(
             .alpha(if (item.isMarkedForDeletion) 0.35f else 1f)
             .border(
                 width = if (item.isMarkedForDeletion) 2.dp else 1.dp,
-                color = if (item.isMarkedForDeletion) Color.Red else Color.LightGray,
-                shape = RoundedCornerShape(8.dp)
+                color = if (item.isMarkedForDeletion) PastelRed else BorderDark,
+                shape = RoundedCornerShape(12.dp)
             ),
-        shape = RoundedCornerShape(8.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(containerColor = DarkToolCard)
     ) {
         Column(
-            modifier = Modifier.padding(6.dp),
+            modifier = Modifier.padding(8.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Box(
@@ -273,33 +300,53 @@ private fun PageThumbnailCard(
                             .rotate(item.rotationDegrees.toFloat())
                     )
                 } else {
-                    Text("P. ${item.displayIndex}")
+                    Text("P. ${item.displayIndex}", color = Color.White)
                 }
 
                 if (item.isMarkedForDeletion) {
                     Icon(
                         imageVector = Icons.Default.Close,
                         contentDescription = "Deleted",
-                        tint = Color.Red,
+                        tint = PastelRed,
                         modifier = Modifier.size(48.dp)
                     )
                 }
             }
 
-            Text("Page ${item.displayIndex}", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold)
+            Text(
+                "Page ${item.displayIndex}",
+                style = MaterialTheme.typography.bodySmall,
+                fontWeight = FontWeight.Bold,
+                color = Color.White
+            )
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 IconButton(onClick = onMoveLeft, enabled = canMoveLeft, modifier = Modifier.size(28.dp)) {
-                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Move Left", modifier = Modifier.size(16.dp))
+                    Icon(
+                        Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = "Move Left",
+                        tint = if (canMoveLeft) Color.White else BorderDark,
+                        modifier = Modifier.size(16.dp)
+                    )
                 }
                 IconButton(onClick = onRotate, modifier = Modifier.size(28.dp)) {
-                    Icon(Icons.Default.RotateRight, contentDescription = "Rotate", modifier = Modifier.size(16.dp))
+                    Icon(
+                        Icons.Default.RotateRight,
+                        contentDescription = "Rotate",
+                        tint = PastelBlue,
+                        modifier = Modifier.size(16.dp)
+                    )
                 }
                 IconButton(onClick = onMoveRight, enabled = canMoveRight, modifier = Modifier.size(28.dp)) {
-                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Move Right", modifier = Modifier.size(16.dp).rotate(180f))
+                    Icon(
+                        Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = "Move Right",
+                        tint = if (canMoveRight) Color.White else BorderDark,
+                        modifier = Modifier.size(16.dp).rotate(180f)
+                    )
                 }
             }
         }

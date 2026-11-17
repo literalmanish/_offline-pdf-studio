@@ -25,6 +25,7 @@ import com.offlinepdf.studio.core.engine.model.ProcessingProgress
 import com.offlinepdf.studio.core.util.FileStorageManager
 import com.offlinepdf.studio.ui.components.ProcessCompleteDownloadDialog
 import com.offlinepdf.studio.ui.components.ProcessingDialog
+import com.offlinepdf.studio.ui.theme.*
 import kotlinx.coroutines.launch
 import java.io.File
 
@@ -54,14 +55,16 @@ fun MergeScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Merge PDF Documents", fontWeight = FontWeight.Bold) },
+                title = { Text("Merge PDF Documents", fontWeight = FontWeight.Bold, color = TextPrimaryDark) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = TextPrimaryDark)
                     }
-                }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = DarkMainBg)
             )
-        }
+        },
+        containerColor = DarkMainBg
     ) { innerPadding ->
         Column(
             modifier = Modifier
@@ -72,11 +75,13 @@ fun MergeScreen(
             Button(
                 onClick = { filePickerLauncher.launch(arrayOf("application/pdf")) },
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp)
+                shape = RoundedCornerShape(12.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = DarkToolCard),
+                border = androidx.compose.foundation.BorderStroke(1.dp, BorderDark)
             ) {
-                Icon(Icons.Default.Add, contentDescription = null)
+                Icon(Icons.Default.Add, contentDescription = null, tint = PastelBlue)
                 Spacer(modifier = Modifier.width(8.dp))
-                Text("Select PDF Files to Merge")
+                Text("Select PDF Files to Merge", color = TextPrimaryDark)
             }
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -91,7 +96,8 @@ fun MergeScreen(
                     Text(
                         "No PDFs selected yet.\nTap the button above to add at least 2 documents.",
                         style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = TextSecondaryDark,
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
                     )
                 }
             } else {
@@ -103,7 +109,9 @@ fun MergeScreen(
                         val (name, size) = remember(uri) { storageManager.getUriMetadata(uri) }
                         Card(
                             modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(12.dp)
+                            shape = RoundedCornerShape(12.dp),
+                            colors = CardDefaults.cardColors(containerColor = DarkToolCard),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, BorderDark)
                         ) {
                             Row(
                                 modifier = Modifier
@@ -115,19 +123,21 @@ fun MergeScreen(
                                     text = "${index + 1}.",
                                     style = MaterialTheme.typography.titleMedium,
                                     fontWeight = FontWeight.Bold,
+                                    color = PinkAccent,
                                     modifier = Modifier.width(28.dp)
                                 )
                                 Column(modifier = Modifier.weight(1f)) {
                                     Text(
                                         text = name,
                                         style = MaterialTheme.typography.bodyLarge,
-                                        fontWeight = FontWeight.Medium
+                                        fontWeight = FontWeight.Medium,
+                                        color = TextPrimaryDark
                                     )
                                     if (size > 0) {
                                         Text(
                                             text = "${size / 1024} KB",
                                             style = MaterialTheme.typography.bodySmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            color = TextSecondaryDark
                                         )
                                     }
                                 }
@@ -136,7 +146,7 @@ fun MergeScreen(
                                         selectedUris = selectedUris.toMutableList().also { it.removeAt(index) }
                                     }
                                 ) {
-                                    Icon(Icons.Default.Delete, contentDescription = "Remove")
+                                    Icon(Icons.Default.Delete, contentDescription = "Remove", tint = StatusError)
                                 }
                             }
                         }
@@ -166,9 +176,10 @@ fun MergeScreen(
                     },
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = PinkAccent, contentColor = DarkMainBg),
                     enabled = selectedUris.size >= 2
                 ) {
-                    Text("Merge ${selectedUris.size} Documents")
+                    Text("Merge ${selectedUris.size} Documents", fontWeight = FontWeight.Bold)
                 }
             }
         }
@@ -183,10 +194,13 @@ fun MergeScreen(
         errorMessage?.let { error ->
             AlertDialog(
                 onDismissRequest = { errorMessage = null },
+                containerColor = DarkSecondaryBg,
+                titleContentColor = TextPrimaryDark,
+                textContentColor = TextSecondaryDark,
                 title = { Text("Notice") },
                 text = { Text(error) },
                 confirmButton = {
-                    TextButton(onClick = { errorMessage = null }) { Text("OK") }
+                    TextButton(onClick = { errorMessage = null }) { Text("OK", color = PinkAccent) }
                 }
             )
         }

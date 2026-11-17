@@ -10,6 +10,7 @@ import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import com.offlinepdf.studio.ui.components.ProcessCompleteDownloadDialog
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectDragGestures
@@ -34,6 +35,7 @@ import com.offlinepdf.studio.core.engine.internal.PdfBoxEngineImpl
 import com.offlinepdf.studio.core.engine.model.*
 import com.offlinepdf.studio.core.util.FileStorageManager
 import com.offlinepdf.studio.ui.components.ProcessingDialog
+import com.offlinepdf.studio.ui.theme.*
 import kotlinx.coroutines.launch
 import java.io.File
 
@@ -105,14 +107,21 @@ fun ToolActionScreen(
     }
 
     Scaffold(
+        containerColor = DarkMainBg,
+        contentColor = androidx.compose.ui.graphics.Color.White,
         topBar = {
             TopAppBar(
-                title = { Text(tool?.title ?: "PDF Tool", fontWeight = FontWeight.Bold) },
+                title = { Text(tool?.title ?: "PDF Tool", fontWeight = FontWeight.Bold, color = androidx.compose.ui.graphics.Color.White) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = androidx.compose.ui.graphics.Color.White)
                     }
-                }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = DarkMainBg,
+                    titleContentColor = androidx.compose.ui.graphics.Color.White,
+                    navigationIconContentColor = androidx.compose.ui.graphics.Color.White
+                )
             )
         }
     ) { innerPadding ->
@@ -127,13 +136,14 @@ fun ToolActionScreen(
             tool?.let {
                 Card(
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(containerColor = DarkToolCard),
+                    border = BorderStroke(1.dp, BorderDark)
                 ) {
-                    Column(modifier = Modifier.padding(14.dp)) {
-                        Text(it.title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                        Spacer(modifier = Modifier.height(2.dp))
-                        Text(it.description, style = MaterialTheme.typography.bodyMedium)
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Text(it.title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = androidx.compose.ui.graphics.Color.White)
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(it.description, style = MaterialTheme.typography.bodyMedium, color = SecondaryText)
                     }
                 }
             }
@@ -142,30 +152,44 @@ fun ToolActionScreen(
             if (toolId == "images_to_pdf") {
                 Button(
                     onClick = { imagePickerLauncher.launch("image/*") },
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp)
+                    modifier = Modifier.fillMaxWidth().height(52.dp),
+                    shape = RoundedCornerShape(14.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = PinkAccent, contentColor = androidx.compose.ui.graphics.Color.Black)
                 ) {
                     Icon(Icons.Default.AddPhotoAlternate, contentDescription = null)
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text(if (selectedMultiUris.isEmpty()) "Select Images" else "Selected ${selectedMultiUris.size} Images")
+                    Text(
+                        if (selectedMultiUris.isEmpty()) "Select Images" else "Selected ${selectedMultiUris.size} Images",
+                        fontWeight = FontWeight.Bold
+                    )
                 }
             } else if (toolId != "text_to_pdf") {
                 Button(
                     onClick = { singlePickerLauncher.launch(arrayOf("application/pdf")) },
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp)
+                    modifier = Modifier.fillMaxWidth().height(52.dp),
+                    shape = RoundedCornerShape(14.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = PinkAccent, contentColor = androidx.compose.ui.graphics.Color.Black)
                 ) {
                     Icon(Icons.Default.FileOpen, contentDescription = null)
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text(if (selectedUri == null) "Select PDF Document" else "Change Selected PDF")
+                    Text(
+                        if (selectedUri == null) "Select PDF Document" else "Change Selected PDF",
+                        fontWeight = FontWeight.Bold
+                    )
                 }
 
                 selectedUri?.let { uri ->
                     val (name, size) = remember(uri) { storageManager.getUriMetadata(uri) }
-                    Card(modifier = Modifier.fillMaxWidth()) {
-                        Column(modifier = Modifier.padding(12.dp)) {
-                            Text(name, fontWeight = FontWeight.SemiBold)
-                            Text("${size / 1024} KB", style = MaterialTheme.typography.bodySmall)
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(14.dp),
+                        colors = CardDefaults.cardColors(containerColor = DarkToolCard),
+                        border = BorderStroke(1.dp, BorderDark)
+                    ) {
+                        Column(modifier = Modifier.padding(14.dp)) {
+                            Text(name, fontWeight = FontWeight.SemiBold, color = androidx.compose.ui.graphics.Color.White)
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text("${size / 1024} KB", style = MaterialTheme.typography.bodySmall, color = SecondaryText)
                         }
                     }
                 }
@@ -175,19 +199,20 @@ fun ToolActionScreen(
             docStats?.let { stats ->
                 Card(
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f))
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(containerColor = DarkToolCard),
+                    border = BorderStroke(1.dp, BorderDark)
                 ) {
                     Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text("📊 Document Analytics", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                        HorizontalDivider()
-                        Text("• Total Pages: ${stats.pageCount}", fontWeight = FontWeight.Medium)
-                        Text("• Word Count: ~${stats.wordCount} words")
-                        Text("• Character Count: ${stats.characterCount} chars")
-                        Text("• Embedded Images: ${stats.imageCount}")
-                        Text("• PDF Version: v${stats.pdfVersion}")
-                        Text("• Encrypted: ${if (stats.isEncrypted) "Yes (Protected)" else "No (Standard)"}")
-                        Text("• File Size: ${stats.fileSizeBytes / 1024} KB")
+                        Text("📊 Document Analytics", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = androidx.compose.ui.graphics.Color.White)
+                        HorizontalDivider(color = BorderDark)
+                        Text("• Total Pages: ${stats.pageCount}", fontWeight = FontWeight.Medium, color = androidx.compose.ui.graphics.Color.White)
+                        Text("• Word Count: ~${stats.wordCount} words", color = SecondaryText)
+                        Text("• Character Count: ${stats.characterCount} chars", color = SecondaryText)
+                        Text("• Embedded Images: ${stats.imageCount}", color = SecondaryText)
+                        Text("• PDF Version: v${stats.pdfVersion}", color = SecondaryText)
+                        Text("• Encrypted: ${if (stats.isEncrypted) "Yes (Protected)" else "No (Standard)"}", color = SecondaryText)
+                        Text("• File Size: ${stats.fileSizeBytes / 1024} KB", color = SecondaryText)
                     }
                 }
             }
@@ -700,11 +725,17 @@ fun ToolActionScreen(
                             }
                         }
                     },
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.fillMaxWidth().height(52.dp),
+                    shape = RoundedCornerShape(14.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = PinkAccent,
+                        contentColor = androidx.compose.ui.graphics.Color.Black,
+                        disabledContainerColor = DarkSecondaryBg,
+                        disabledContentColor = SecondaryText
+                    ),
                     enabled = (selectedUri != null || toolId == "images_to_pdf" || toolId == "text_to_pdf")
                 ) {
-                    Text("Process Document")
+                    Text(tool?.title ?: "Process Document", fontWeight = FontWeight.Bold)
                 }
             }
         }
@@ -716,18 +747,28 @@ fun ToolActionScreen(
         errorMessage?.let { error ->
             AlertDialog(
                 onDismissRequest = { errorMessage = null },
-                title = { Text("Notice") },
-                text = { Text(error) },
-                confirmButton = { TextButton(onClick = { errorMessage = null }) { Text("OK") } }
+                containerColor = DarkSecondaryBg,
+                title = { Text("Notice", color = androidx.compose.ui.graphics.Color.White) },
+                text = { Text(error, color = SecondaryText) },
+                confirmButton = {
+                    TextButton(onClick = { errorMessage = null }) {
+                        Text("OK", color = PinkAccent)
+                    }
+                }
             )
         }
 
         resultMessage?.let { msg ->
             AlertDialog(
                 onDismissRequest = { resultMessage = null },
-                title = { Text("Result") },
-                text = { Text(msg) },
-                confirmButton = { TextButton(onClick = { resultMessage = null }) { Text("OK") } }
+                containerColor = DarkSecondaryBg,
+                title = { Text("Result", color = androidx.compose.ui.graphics.Color.White) },
+                text = { Text(msg, color = SecondaryText) },
+                confirmButton = {
+                    TextButton(onClick = { resultMessage = null }) {
+                        Text("OK", color = PinkAccent)
+                    }
+                }
             )
         }
 
@@ -743,15 +784,16 @@ fun ToolActionScreen(
             var downloadedCount by remember { mutableIntStateOf(0) }
             AlertDialog(
                 onDismissRequest = { resultFiles = null },
-                title = { Text("Extraction Complete! 🖼️", fontWeight = FontWeight.Bold) },
+                containerColor = DarkSecondaryBg,
+                title = { Text("Extraction Complete! 🖼️", fontWeight = FontWeight.Bold, color = androidx.compose.ui.graphics.Color.White) },
                 text = {
                     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                        Text("Extracted ${files.size} image files successfully.")
+                        Text("Extracted ${files.size} image files successfully.", color = androidx.compose.ui.graphics.Color.White)
 
                         if (downloadedCount > 0) {
                             Text(
                                 "Downloaded $downloadedCount / ${files.size} images to Downloads folder!",
-                                color = MaterialTheme.colorScheme.primary,
+                                color = PinkAccent,
                                 fontWeight = FontWeight.SemiBold
                             )
                         }
@@ -766,9 +808,11 @@ fun ToolActionScreen(
                                 downloadedCount = count
                                 Toast.makeText(context, "Saved $count images to Downloads/OfflinePDFStudio", Toast.LENGTH_LONG).show()
                             },
-                            modifier = Modifier.fillMaxWidth()
+                            modifier = Modifier.fillMaxWidth().height(48.dp),
+                            shape = RoundedCornerShape(12.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = PinkAccent, contentColor = androidx.compose.ui.graphics.Color.Black)
                         ) {
-                            Text("Direct Download All (${files.size} Images)")
+                            Text("Direct Download All (${files.size} Images)", fontWeight = FontWeight.Bold)
                         }
 
                         OutlinedButton(
@@ -782,14 +826,17 @@ fun ToolActionScreen(
                                 }
                                 context.startActivity(Intent.createChooser(shareIntent, "Share First Image"))
                             },
-                            modifier = Modifier.fillMaxWidth()
+                            modifier = Modifier.fillMaxWidth().height(48.dp),
+                            shape = RoundedCornerShape(12.dp),
+                            colors = OutlinedButtonDefaults.outlinedButtonColors(contentColor = androidx.compose.ui.graphics.Color.White),
+                            border = BorderStroke(1.dp, BorderDark)
                         ) {
                             Text("Share First Image")
                         }
                     }
                 },
                 confirmButton = {
-                    TextButton(onClick = { resultFiles = null }) { Text("Done") }
+                    TextButton(onClick = { resultFiles = null }) { Text("Done", color = PinkAccent) }
                 }
             )
         }

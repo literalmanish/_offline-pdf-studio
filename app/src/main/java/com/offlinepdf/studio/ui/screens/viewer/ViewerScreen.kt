@@ -23,6 +23,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.offlinepdf.studio.core.renderer.PdfRendererHelper
+import com.offlinepdf.studio.ui.theme.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -88,36 +89,44 @@ fun ViewerScreen(
     }
 
     Scaffold(
+        containerColor = DarkMainBg,
+        contentColor = Color.White,
         topBar = {
             TopAppBar(
                 title = {
                     Text(
                         if (totalPages > 0) "Page ${currentPageIndex + 1} of $totalPages" else "PDF Viewer",
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White
                     )
                 },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color.White)
                     }
                 },
                 actions = {
                     IconButton(onClick = { filePickerLauncher.launch(arrayOf("application/pdf")) }) {
-                        Icon(Icons.Default.FileOpen, contentDescription = "Open PDF")
+                        Icon(Icons.Default.FileOpen, contentDescription = "Open PDF", tint = PinkAccent)
                     }
-                }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = DarkMainBg,
+                    titleContentColor = Color.White,
+                    navigationIconContentColor = Color.White
+                )
             )
         },
         bottomBar = {
             if (totalPages > 1) {
                 Surface(
-                    color = MaterialTheme.colorScheme.surface,
+                    color = DarkBottomNav,
                     tonalElevation = 4.dp
                 ) {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(8.dp),
+                            .padding(horizontal = 16.dp, vertical = 8.dp),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
@@ -125,20 +134,29 @@ fun ViewerScreen(
                             onClick = { loadPage(currentPageIndex - 1) },
                             enabled = currentPageIndex > 0
                         ) {
-                            Icon(Icons.Default.NavigateBefore, contentDescription = "Previous Page")
+                            Icon(
+                                Icons.Default.NavigateBefore,
+                                contentDescription = "Previous Page",
+                                tint = if (currentPageIndex > 0) Color.White else BorderDark
+                            )
                         }
 
                         Text(
                             text = "${currentPageIndex + 1} / $totalPages",
                             style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.SemiBold
+                            fontWeight = FontWeight.SemiBold,
+                            color = Color.White
                         )
 
                         IconButton(
                             onClick = { loadPage(currentPageIndex + 1) },
                             enabled = currentPageIndex < totalPages - 1
                         ) {
-                            Icon(Icons.Default.NavigateNext, contentDescription = "Next Page")
+                            Icon(
+                                Icons.Default.NavigateNext,
+                                contentDescription = "Next Page",
+                                tint = if (currentPageIndex < totalPages - 1) Color.White else BorderDark
+                            )
                         }
                     }
                 }
@@ -149,20 +167,22 @@ fun ViewerScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .background(Color(0xFFE0E0E0)),
+                .background(DarkMainBg),
             contentAlignment = Alignment.Center
         ) {
             if (activeUri == null) {
                 Button(
                     onClick = { filePickerLauncher.launch(arrayOf("application/pdf")) },
-                    shape = RoundedCornerShape(12.dp)
+                    shape = RoundedCornerShape(14.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = PinkAccent, contentColor = Color.Black),
+                    modifier = Modifier.height(52.dp)
                 ) {
                     Icon(Icons.Default.FileOpen, contentDescription = null)
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("Select PDF Document to View")
+                    Text("Select PDF Document to View", fontWeight = FontWeight.Bold)
                 }
             } else if (isLoading) {
-                CircularProgressIndicator()
+                CircularProgressIndicator(color = PinkAccent)
             } else if (currentBitmap != null) {
                 Image(
                     bitmap = currentBitmap!!.asImageBitmap(),

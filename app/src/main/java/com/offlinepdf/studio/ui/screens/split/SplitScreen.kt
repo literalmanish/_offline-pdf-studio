@@ -5,6 +5,7 @@ import android.net.Uri
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -15,6 +16,7 @@ import androidx.compose.material.icons.filled.FileOpen
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -23,6 +25,7 @@ import com.offlinepdf.studio.core.engine.model.EngineResult
 import com.offlinepdf.studio.core.engine.model.ProcessingProgress
 import com.offlinepdf.studio.core.util.FileStorageManager
 import com.offlinepdf.studio.ui.components.ProcessingDialog
+import com.offlinepdf.studio.ui.theme.*
 import kotlinx.coroutines.launch
 import java.io.File
 
@@ -60,14 +63,21 @@ fun SplitScreen(
     }
 
     Scaffold(
+        containerColor = DarkMainBg,
+        contentColor = Color.White,
         topBar = {
             TopAppBar(
-                title = { Text("Split PDF", fontWeight = FontWeight.Bold) },
+                title = { Text("Split PDF", fontWeight = FontWeight.Bold, color = Color.White) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color.White)
                     }
-                }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = DarkMainBg,
+                    titleContentColor = Color.White,
+                    navigationIconContentColor = Color.White
+                )
             )
         }
     ) { innerPadding ->
@@ -81,27 +91,36 @@ fun SplitScreen(
         ) {
             Button(
                 onClick = { filePickerLauncher.launch(arrayOf("application/pdf")) },
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp)
+                modifier = Modifier.fillMaxWidth().height(52.dp),
+                shape = RoundedCornerShape(14.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = PinkAccent,
+                    contentColor = Color.Black
+                )
             ) {
                 Icon(Icons.Default.FileOpen, contentDescription = null)
                 Spacer(modifier = Modifier.width(8.dp))
-                Text(if (selectedUri == null) "Select PDF to Split" else "Choose Different PDF")
+                Text(
+                    if (selectedUri == null) "Select PDF to Split" else "Choose Different PDF",
+                    fontWeight = FontWeight.Bold
+                )
             }
 
             selectedUri?.let { uri ->
                 val (name, size) = remember(uri) { storageManager.getUriMetadata(uri) }
                 Card(
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp)
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(containerColor = DarkToolCard),
+                    border = BorderStroke(1.dp, BorderDark)
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
-                        Text(name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                        Text(name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = Color.White)
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
                             "Total Pages: $totalPages • ${size / 1024} KB",
                             style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = SecondaryText
                         )
                     }
                 }
@@ -110,15 +129,24 @@ fun SplitScreen(
                     value = rangeInput,
                     onValueChange = { rangeInput = it },
                     label = { Text("Page Ranges (e.g. 1-3, 4-6)") },
-                    placeholder = { Text("1-2, 3-5") },
+                    placeholder = { Text("1-2, 3-5", color = SecondaryText) },
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp)
+                    shape = RoundedCornerShape(12.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = PinkAccent,
+                        unfocusedBorderColor = BorderDark,
+                        focusedLabelColor = PinkAccent,
+                        unfocusedLabelColor = SecondaryText,
+                        focusedTextColor = Color.White,
+                        unfocusedTextColor = Color.White,
+                        cursorColor = PinkAccent
+                    )
                 )
 
                 Text(
                     "Format: Comma-separated page ranges (e.g. '1-3, 4-5' creates 2 files).",
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = SecondaryText
                 )
 
                 Button(
@@ -142,11 +170,17 @@ fun SplitScreen(
                             }
                         }
                     },
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp),
-                    enabled = totalPages > 0
+                    modifier = Modifier.fillMaxWidth().height(52.dp),
+                    shape = RoundedCornerShape(14.dp),
+                    enabled = totalPages > 0,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = PinkAccent,
+                        contentColor = Color.Black,
+                        disabledContainerColor = DarkSecondaryBg,
+                        disabledContentColor = SecondaryText
+                    )
                 ) {
-                    Text("Split PDF")
+                    Text("Split PDF", fontWeight = FontWeight.Bold)
                 }
             }
         }
@@ -158,9 +192,14 @@ fun SplitScreen(
         errorMessage?.let { error ->
             AlertDialog(
                 onDismissRequest = { errorMessage = null },
-                title = { Text("Notice") },
-                text = { Text(error) },
-                confirmButton = { TextButton(onClick = { errorMessage = null }) { Text("OK") } }
+                containerColor = DarkSecondaryBg,
+                title = { Text("Notice", color = Color.White) },
+                text = { Text(error, color = SecondaryText) },
+                confirmButton = {
+                    TextButton(onClick = { errorMessage = null }) {
+                        Text("OK", color = PinkAccent)
+                    }
+                }
             )
         }
 
@@ -168,15 +207,16 @@ fun SplitScreen(
             var downloadedCount by remember { mutableIntStateOf(0) }
             AlertDialog(
                 onDismissRequest = { splitResultFiles = null },
-                title = { Text("Split Complete! 📄", fontWeight = FontWeight.Bold) },
+                containerColor = DarkSecondaryBg,
+                title = { Text("Split Complete! 📄", fontWeight = FontWeight.Bold, color = Color.White) },
                 text = {
                     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                        Text("Successfully created ${files.size} document parts.")
+                        Text("Successfully created ${files.size} document parts.", color = Color.White)
 
                         if (downloadedCount > 0) {
                             Text(
                                 "Downloaded $downloadedCount / ${files.size} parts to Downloads folder!",
-                                color = MaterialTheme.colorScheme.primary,
+                                color = PinkAccent,
                                 fontWeight = FontWeight.SemiBold
                             )
                         }
@@ -191,9 +231,11 @@ fun SplitScreen(
                                 downloadedCount = count
                                 Toast.makeText(context, "Saved $count files to Downloads/OfflinePDFStudio", Toast.LENGTH_LONG).show()
                             },
-                            modifier = Modifier.fillMaxWidth()
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = ButtonDefaults.buttonColors(containerColor = PinkAccent, contentColor = Color.Black),
+                            shape = RoundedCornerShape(12.dp)
                         ) {
-                            Text("Direct Download All (${files.size} Parts)")
+                            Text("Direct Download All (${files.size} Parts)", fontWeight = FontWeight.Bold)
                         }
 
                         OutlinedButton(
@@ -207,14 +249,17 @@ fun SplitScreen(
                                 }
                                 context.startActivity(Intent.createChooser(shareIntent, "Share First Part"))
                             },
-                            modifier = Modifier.fillMaxWidth()
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = OutlinedButtonDefaults.outlinedButtonColors(contentColor = Color.White),
+                            border = BorderStroke(1.dp, BorderDark),
+                            shape = RoundedCornerShape(12.dp)
                         ) {
                             Text("Share First File")
                         }
                     }
                 },
                 confirmButton = {
-                    TextButton(onClick = { splitResultFiles = null }) { Text("Done") }
+                    TextButton(onClick = { splitResultFiles = null }) { Text("Done", color = PinkAccent) }
                 }
             )
         }

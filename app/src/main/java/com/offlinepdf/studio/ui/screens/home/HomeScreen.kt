@@ -1,43 +1,61 @@
 package com.offlinepdf.studio.ui.screens.home
 
+import android.content.Intent
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.offlinepdf.studio.core.engine.model.StudioTool
 import com.offlinepdf.studio.core.engine.model.ToolCatalog
-import com.offlinepdf.studio.core.engine.model.ToolCategory
+import com.offlinepdf.studio.core.util.FileStorageManager
+import com.offlinepdf.studio.ui.components.FileItemCard
 import com.offlinepdf.studio.ui.components.PrivacyBadge
-import com.offlinepdf.studio.ui.components.ToolCard
+import com.offlinepdf.studio.ui.components.ThreeColumnToolItem
 import com.offlinepdf.studio.ui.navigation.Screen
+import com.offlinepdf.studio.ui.theme.*
+import java.io.File
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
     onNavigateTo: (Screen) -> Unit
 ) {
-    var searchQuery by remember { mutableStateOf("") }
-    var selectedCategory by remember { mutableStateOf<ToolCategory?>(null) }
+    val context = LocalContext.current
+    val storageManager = remember { FileStorageManager(context) }
+    var recentFiles by remember { mutableStateOf<List<File>>(emptyList()) }
+    var favoriteFiles by remember { mutableStateOf<Set<String>>(emptySet()) }
+    var showProfileDialog by remember { mutableStateOf(false) }
 
-    val filteredTools = remember(searchQuery, selectedCategory) {
-        ToolCatalog.allTools.filter { tool ->
-            val matchesCategory = selectedCategory == null || tool.category == selectedCategory
-            val matchesQuery = searchQuery.isBlank() ||
-                    tool.title.contains(searchQuery, ignoreCase = true) ||
-                    tool.description.contains(searchQuery, ignoreCase = true)
-            matchesCategory && matchesQuery
+    fun refreshFiles() {
+        val docsDir = File(context.filesDir, "pdf_documents")
+        val files = docsDir.listFiles { f -> f.extension.equals("pdf", true) }?.sortedByDescending { it.lastModified() } ?: emptyList()
+        recentFiles = files.take(8)
+    }
+
+    LaunchedEffect(Unit) {
+        refreshFiles()
+    }
+
+    val quickTools = remember {
+        ToolCatalog.allTools.filter {
+            it.id in listOf("merge", "split", "compress", "images_to_pdf", "pdf_to_images", "sign")
         }
     }
 
@@ -46,229 +64,258 @@ fun HomeScreen(
             TopAppBar(
                 title = {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(
-                            text = "Offline PDF Studio",
-                            fontWeight = FontWeight.Bold,
-                            style = MaterialTheme.typography.titleLarge
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Surface(
-                            shape = RoundedCornerShape(12.dp),
-                            color = MaterialTheme.colorScheme.primaryContainer
+                        Box(
+                            modifier = Modifier
+                                .size(34.dp)
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(PinkAccent),
+                            contentAlignment = Alignment.Center
                         ) {
-                            Text(
-                                text = "36 Tools",
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
-                                style = MaterialTheme.typography.labelSmall,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.primary
+                            Icon(
+                                imageVector = Icons.Default.PictureAsPdf,
+                                contentDescription = null,
+                                tint = DarkMainBg,
+                                modifier = Modifier.size(20.dp)
                             )
+                        }
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Text(
+                            text = "Offline PDF",
+                            fontWeight = FontWeight.Bold,
+                            style = MaterialTheme.typography.titleLarge,
+                            color = TextPrimaryDark
+                        )
+                    }
+                },
+                actions = {
+                    IconButton(onClick = { onNavigateTo(Screen.Tools) }) {
+                        Icon(Icons.Default.Search, contentDescription = "Search", tint = TextPrimaryDark)
+                    }
+                    IconButton(onClick = { showProfileDialog = true }) {
+                        Box(
+                            modifier = Modifier
+                                .size(32.dp)
+                                .clip(CircleShape)
+                                .background(DarkSecondaryBg)
+                                .border(1.dp, BorderDark, CircleShape),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(Icons.Default.Person, contentDescription = "Profile", tint = PinkAccent, modifier = Modifier.size(18.dp))
                         }
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background
-                )
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = DarkMainBg)
             )
         },
-        containerColor = MaterialTheme.colorScheme.background
+        containerColor = DarkMainBg
     ) { innerPadding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
                 .padding(horizontal = 16.dp)
+                .verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            PrivacyBadge(modifier = Modifier.padding(top = 4.dp, bottom = 8.dp))
+            PrivacyBadge(modifier = Modifier.padding(top = 4.dp))
 
-            // Search Bar
-            OutlinedTextField(
-                value = searchQuery,
-                onValueChange = { searchQuery = it },
-                placeholder = { Text("Search 36 offline PDF tools...") },
-                leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
-                trailingIcon = {
-                    if (searchQuery.isNotEmpty()) {
-                        IconButton(onClick = { searchQuery = "" }) {
-                            Icon(Icons.Default.Clear, contentDescription = "Clear")
-                        }
-                    }
-                },
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(16.dp),
-                singleLine = true
-            )
-
-            Spacer(modifier = Modifier.height(10.dp))
-
-            // Category Filter Chips
+            // Quick Access Section
             Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .horizontalScroll(rememberScrollState()),
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Quick Tools",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = TextPrimaryDark
+                )
+                Text(
+                    text = "View all (36)",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = PinkAccent,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.clickable { onNavigateTo(Screen.Tools) }
+                )
+            }
+
+            // Quick Tools 3-column row
+            Row(
+                modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                FilterChip(
-                    selected = (selectedCategory == null),
-                    onClick = { selectedCategory = null },
-                    label = { Text("All (36)") }
-                )
-                ToolCategory.entries.forEach { cat ->
-                    val count = ToolCatalog.allTools.count { it.category == cat }
-                    FilterChip(
-                        selected = (selectedCategory == cat),
-                        onClick = { selectedCategory = if (selectedCategory == cat) null else cat },
-                        label = { Text("${cat.title} ($count)") }
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            // Tools List
-            LazyColumn(
-                modifier = Modifier.fillMaxSize(),
-                verticalArrangement = Arrangement.spacedBy(10.dp),
-                contentPadding = PaddingValues(bottom = 24.dp)
-            ) {
-                items(filteredTools, key = { it.id }) { tool ->
-                    ToolCatalogCard(
-                        tool = tool,
-                        onClick = {
-                            when (tool.id) {
-                                "merge" -> onNavigateTo(Screen.Merge)
-                                "split" -> onNavigateTo(Screen.Split)
-                                "reorder" -> onNavigateTo(Screen.Reorder)
-                                "compress" -> onNavigateTo(Screen.Compress)
-                                "viewer" -> onNavigateTo(Screen.Viewer)
-                                else -> onNavigateTo(Screen.ToolAction(tool.id))
+                quickTools.take(3).forEach { tool ->
+                    Box(modifier = Modifier.weight(1f)) {
+                        ThreeColumnToolItem(
+                            tool = tool,
+                            onClick = {
+                                when (tool.id) {
+                                    "merge" -> onNavigateTo(Screen.Merge)
+                                    "split" -> onNavigateTo(Screen.Split)
+                                    "compress" -> onNavigateTo(Screen.Compress)
+                                    else -> onNavigateTo(Screen.ToolAction(tool.id))
+                                }
                             }
-                        }
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
-fun ToolCatalogCard(
-    tool: StudioTool,
-    onClick: () -> Unit
-) {
-    val (icon, tint) = getToolIconAndTint(tool.iconName, tool.category)
-
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(14.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
-        onClick = onClick
-    ) {
-        Row(
-            modifier = Modifier
-                .padding(14.dp)
-                .fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(14.dp)
-        ) {
-            Surface(
-                shape = RoundedCornerShape(10.dp),
-                color = tint.copy(alpha = 0.12f),
-                modifier = Modifier.size(44.dp)
-            ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Icon(imageVector = icon, contentDescription = tool.title, tint = tint, modifier = Modifier.size(24.dp))
-                }
-            }
-
-            Column(modifier = Modifier.weight(1f)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        text = tool.title,
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
-                    )
-                    tool.badge?.let { badge ->
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Surface(
-                            shape = RoundedCornerShape(6.dp),
-                            color = tint.copy(alpha = 0.15f)
-                        ) {
-                            Text(
-                                text = badge,
-                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-                                style = MaterialTheme.typography.labelSmall,
-                                fontWeight = FontWeight.Bold,
-                                color = tint
-                            )
-                        }
+                        )
                     }
                 }
-                Spacer(modifier = Modifier.height(2.dp))
-                Text(
-                    text = tool.description,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
             }
 
-            Icon(
-                imageVector = Icons.Default.ChevronRight,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.outline
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                quickTools.drop(3).take(3).forEach { tool ->
+                    Box(modifier = Modifier.weight(1f)) {
+                        ThreeColumnToolItem(
+                            tool = tool,
+                            onClick = { onNavigateTo(Screen.ToolAction(tool.id)) }
+                        )
+                    }
+                }
+            }
+
+            // Favorites Section
+            val favoriteFileList = recentFiles.filter { it.absolutePath in favoriteFiles }
+            if (favoriteFileList.isNotEmpty()) {
+                Text(
+                    text = "Favorites",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = TextPrimaryDark
+                )
+                favoriteFileList.forEach { file ->
+                    FileItemCard(
+                        file = file,
+                        isFavorite = true,
+                        onOpen = {
+                            val uri = storageManager.getShareableUri(file)
+                            onNavigateTo(Screen.Viewer)
+                        },
+                        onShare = {
+                            val uri = storageManager.getShareableUri(file)
+                            val intent = Intent(Intent.ACTION_SEND).apply {
+                                type = "application/pdf"
+                                putExtra(Intent.EXTRA_STREAM, uri)
+                                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                            }
+                            context.startActivity(Intent.createChooser(intent, "Share PDF"))
+                        },
+                        onDelete = {
+                            file.delete()
+                            refreshFiles()
+                        },
+                        onToggleFavorite = {
+                            favoriteFiles = favoriteFiles - file.absolutePath
+                        }
+                    )
+                }
+            }
+
+            // Recent Files Section
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Recent Files",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = TextPrimaryDark
+                )
+                if (recentFiles.isNotEmpty()) {
+                    Text(
+                        text = "View in Files",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = PinkAccent,
+                        fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier.clickable { onNavigateTo(Screen.Files) }
+                    )
+                }
+            }
+
+            if (recentFiles.isEmpty()) {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(containerColor = DarkToolCard),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, BorderDark)
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(24.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(48.dp)
+                                .clip(CircleShape)
+                                .background(DarkSecondaryBg),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(Icons.Outlined.FolderOpen, contentDescription = null, tint = TextSecondaryDark)
+                        }
+                        Spacer(modifier = Modifier.height(10.dp))
+                        Text("No recent files yet", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold, color = TextPrimaryDark)
+                        Text("Processed and converted PDFs will appear here automatically.", style = MaterialTheme.typography.bodySmall, color = TextSecondaryDark, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+                    }
+                }
+            } else {
+                recentFiles.forEach { file ->
+                    val isFav = file.absolutePath in favoriteFiles
+                    FileItemCard(
+                        file = file,
+                        isFavorite = isFav,
+                        onOpen = {
+                            val uri = storageManager.getShareableUri(file)
+                            onNavigateTo(Screen.Viewer)
+                        },
+                        onShare = {
+                            val uri = storageManager.getShareableUri(file)
+                            val intent = Intent(Intent.ACTION_SEND).apply {
+                                type = "application/pdf"
+                                putExtra(Intent.EXTRA_STREAM, uri)
+                                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                            }
+                            context.startActivity(Intent.createChooser(intent, "Share PDF"))
+                        },
+                        onDelete = {
+                            file.delete()
+                            refreshFiles()
+                        },
+                        onToggleFavorite = {
+                            favoriteFiles = if (isFav) favoriteFiles - file.absolutePath else favoriteFiles + file.absolutePath
+                        }
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(30.dp))
+        }
+
+        if (showProfileDialog) {
+            AlertDialog(
+                onDismissRequest = { showProfileDialog = false },
+                containerColor = DarkSecondaryBg,
+                titleContentColor = TextPrimaryDark,
+                textContentColor = TextSecondaryDark,
+                title = { Text("Offline PDF Studio", fontWeight = FontWeight.Bold) },
+                text = {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text("• Device-First Architecture")
+                        Text("• 100% Offline with Zero Network Access")
+                        Text("• Version 2.0.0 (Native Android)")
+                    }
+                },
+                confirmButton = {
+                    TextButton(onClick = { showProfileDialog = false }) {
+                        Text("OK", color = PinkAccent)
+                    }
+                }
             )
         }
     }
-}
-
-private fun getToolIconAndTint(name: String, cat: ToolCategory): Pair<ImageVector, Color> {
-    val tint = when (cat) {
-        ToolCategory.ORGANIZE -> Color(0xFF1976D2)
-        ToolCategory.CONVERT -> Color(0xFF00796B)
-        ToolCategory.SECURITY -> Color(0xFFD32F2F)
-        ToolCategory.BRANDING -> Color(0xFFF57C00)
-        ToolCategory.OPTIMIZE -> Color(0xFF7B1FA2)
-        ToolCategory.VIEW -> Color(0xFF388E3C)
-    }
-
-    val icon = when (name) {
-        "CallMerge" -> Icons.Default.CallMerge
-        "CallSplit" -> Icons.Default.CallSplit
-        "ViewAgenda" -> Icons.Default.ViewAgenda
-        "RotateRight" -> Icons.Default.RotateRight
-        "SwapVert" -> Icons.Default.SwapVert
-        "ContentCopy" -> Icons.Default.ContentCopy
-        "NoteAdd" -> Icons.Default.NoteAdd
-        "Crop" -> Icons.Default.Crop
-        "Dashboard" -> Icons.Default.Dashboard
-        "LayersClear" -> Icons.Default.LayersClear
-        "PhotoLibrary" -> Icons.Default.PhotoLibrary
-        "Image" -> Icons.Default.Image
-        "Filter" -> Icons.Default.Filter
-        "Article" -> Icons.Default.Article
-        "TextFields" -> Icons.Default.TextFields
-        "Lock" -> Icons.Default.Lock
-        "LockOpen" -> Icons.Default.LockOpen
-        "Layers" -> Icons.Default.Layers
-        "Badge" -> Icons.Default.Badge
-        "CleaningServices" -> Icons.Default.CleaningServices
-        "Build" -> Icons.Default.Build
-        "BrandingWatermark" -> Icons.Default.BrandingWatermark
-        "FormatListNumbered" -> Icons.Default.FormatListNumbered
-        "BorderLeft" -> Icons.Default.BorderLeft
-        "Title" -> Icons.Default.Title
-        "Approval" -> Icons.Default.Approval
-        "Draw" -> Icons.Default.Draw
-        "Compress" -> Icons.Default.Compress
-        "Contrast" -> Icons.Default.Contrast
-        "DarkMode" -> Icons.Default.DarkMode
-        "DeleteSweep" -> Icons.Default.DeleteSweep
-        "Assessment" -> Icons.Default.Assessment
-        "Visibility" -> Icons.Default.Visibility
-        "Bookmarks" -> Icons.Default.Bookmarks
-        "Compare" -> Icons.Default.Compare
-        else -> Icons.Default.PictureAsPdf
-    }
-    return Pair(icon, tint)
 }

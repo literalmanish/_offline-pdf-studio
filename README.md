@@ -1,6 +1,12 @@
-# Offline PDF Studio (Native Android)
+# Offline PDF Studio (Native Android v2.1.0)
 
 A 100% offline, privacy-first Android PDF manipulation studio built with Kotlin, Jetpack Compose, Material 3, `PdfRenderer`, and `PdfBox-Android`.
+
+## 🌟 What's New in v2.1.0
+- **Modern Dark UI/UX Redesign**: Premium dark theme inspired by iLovePDF dark specifications (`#151515` canvas, `#090909` tool cards, `#292831` navigation dock, and `#FFA9B6` soft pink active accents).
+- **5-Tab Persistent Bottom Navigation**: Seamless switching between **Home**, **Files** (storage dashboard & category filters), **Tools** (responsive 3-column tools grid with instant search), **Scanner** (camera & gallery scanning), and **Settings** (privacy badge, cache cleaner).
+- **1-Click Direct Download**: Direct saving of processed files to phone's public `Downloads/OfflinePDFStudio/` folder alongside instant preview and share actions.
+- **Full 36 Offline Tool Suite**: Complete, robust native tooling operating strictly on `Dispatchers.IO` with zero network permissions.
 
 ## Architecture & Features
 

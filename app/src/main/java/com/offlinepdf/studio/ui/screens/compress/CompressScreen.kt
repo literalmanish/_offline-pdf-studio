@@ -4,6 +4,7 @@ import android.content.Intent
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -17,6 +18,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -27,6 +29,7 @@ import com.offlinepdf.studio.core.engine.model.ProcessingProgress
 import com.offlinepdf.studio.core.util.FileStorageManager
 import com.offlinepdf.studio.ui.components.ProcessCompleteDownloadDialog
 import com.offlinepdf.studio.ui.components.ProcessingDialog
+import com.offlinepdf.studio.ui.theme.*
 import kotlinx.coroutines.launch
 import java.io.File
 
@@ -58,14 +61,21 @@ fun CompressScreen(
     }
 
     Scaffold(
+        containerColor = DarkMainBg,
+        contentColor = Color.White,
         topBar = {
             TopAppBar(
-                title = { Text("Compress PDF", fontWeight = FontWeight.Bold) },
+                title = { Text("Compress PDF", fontWeight = FontWeight.Bold, color = Color.White) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color.White)
                     }
-                }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = DarkMainBg,
+                    titleContentColor = Color.White,
+                    navigationIconContentColor = Color.White
+                )
             )
         }
     ) { innerPadding ->
@@ -79,45 +89,50 @@ fun CompressScreen(
         ) {
             Button(
                 onClick = { filePickerLauncher.launch(arrayOf("application/pdf")) },
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp)
+                modifier = Modifier.fillMaxWidth().height(52.dp),
+                shape = RoundedCornerShape(14.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = PinkAccent, contentColor = Color.Black)
             ) {
                 Icon(Icons.Default.FileOpen, contentDescription = null)
                 Spacer(modifier = Modifier.width(8.dp))
-                Text(if (selectedUri == null) "Select PDF to Compress" else "Choose Different PDF")
+                Text(
+                    if (selectedUri == null) "Select PDF to Compress" else "Choose Different PDF",
+                    fontWeight = FontWeight.Bold
+                )
             }
 
             selectedUri?.let { uri ->
                 val (name, _) = remember(uri) { storageManager.getUriMetadata(uri) }
                 Card(
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp)
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(containerColor = DarkToolCard),
+                    border = BorderStroke(1.dp, BorderDark)
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
-                        Text(name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                        Text(name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = Color.White)
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
                             "Original Size: ${originalSizeBytes / 1024} KB",
                             style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = SecondaryText
                         )
                     }
                 }
 
-                Text("Select Compression Level:", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                Text("Select Compression Level:", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold, color = Color.White)
 
                 CompressionLevel.entries.forEach { level ->
+                    val isSelected = selectedLevel == level
                     Card(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clickable { selectedLevel = level },
-                        shape = RoundedCornerShape(12.dp),
+                        shape = RoundedCornerShape(14.dp),
                         colors = CardDefaults.cardColors(
-                            containerColor = if (selectedLevel == level)
-                                MaterialTheme.colorScheme.primaryContainer
-                            else
-                                MaterialTheme.colorScheme.surface
-                        )
+                            containerColor = if (isSelected) DarkSecondaryBg else DarkToolCard
+                        ),
+                        border = BorderStroke(1.dp, if (isSelected) PinkAccent else BorderDark)
                     ) {
                         Row(
                             modifier = Modifier
@@ -126,13 +141,17 @@ fun CompressScreen(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             RadioButton(
-                                selected = (selectedLevel == level),
-                                onClick = { selectedLevel = level }
+                                selected = isSelected,
+                                onClick = { selectedLevel = level },
+                                colors = RadioButtonDefaults.colors(
+                                    selectedColor = PinkAccent,
+                                    unselectedColor = SecondaryText
+                                )
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                             Column {
-                                Text(level.title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                                Text(level.description, style = MaterialTheme.typography.bodySmall)
+                                Text(level.title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = Color.White)
+                                Text(level.description, style = MaterialTheme.typography.bodySmall, color = SecondaryText)
                             }
                         }
                     }
@@ -154,12 +173,13 @@ fun CompressScreen(
                             }
                         }
                     },
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp)
+                    modifier = Modifier.fillMaxWidth().height(52.dp),
+                    shape = RoundedCornerShape(14.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = PinkAccent, contentColor = Color.Black)
                 ) {
                     Icon(Icons.Default.Compress, contentDescription = null)
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("Compress On-Device")
+                    Text("Compress On-Device", fontWeight = FontWeight.Bold)
                 }
             }
         }
@@ -171,9 +191,14 @@ fun CompressScreen(
         errorMessage?.let { error ->
             AlertDialog(
                 onDismissRequest = { errorMessage = null },
-                title = { Text("Notice") },
-                text = { Text(error) },
-                confirmButton = { TextButton(onClick = { errorMessage = null }) { Text("OK") } }
+                containerColor = DarkSecondaryBg,
+                title = { Text("Notice", color = Color.White) },
+                text = { Text(error, color = SecondaryText) },
+                confirmButton = {
+                    TextButton(onClick = { errorMessage = null }) {
+                        Text("OK", color = PinkAccent)
+                    }
+                }
             )
         }
 
