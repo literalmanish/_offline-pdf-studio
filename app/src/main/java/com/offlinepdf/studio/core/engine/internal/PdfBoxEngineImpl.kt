@@ -491,8 +491,10 @@ class PdfBoxEngineImpl(
                 coroutineContext.ensureActive()
                 onProgress(ProcessingProgress(i + 1, total, "Rendering page ${i + 1} of $total..."))
                 val page = renderer.openPage(i)
-                val width = page.width * 2
-                val height = page.height * 2
+                val maxDim = 2560
+                val scale = 2.0f.coerceAtMost(maxDim.toFloat() / maxOf(page.width, page.height).toFloat())
+                val width = (page.width * scale).toInt().coerceAtLeast(1)
+                val height = (page.height * scale).toInt().coerceAtLeast(1)
                 val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
                 val canvas = android.graphics.Canvas(bitmap)
                 canvas.drawColor(Color.WHITE)
@@ -1356,9 +1358,10 @@ class PdfBoxEngineImpl(
             val totalPages = renderer.pageCount
             val targetIndex = pageIndex.coerceIn(0, (totalPages - 1).coerceAtLeast(0))
 
-            // 1. Render target page at 2.0x resolution for crisp output
+            // 1. Render target page at 2.0x resolution for crisp output (capped to prevent OOM on huge pages)
             val rPage = renderer.openPage(targetIndex)
-            val renderScale = 2.0f
+            val maxDim = 2560
+            val renderScale = 2.0f.coerceAtMost(maxDim.toFloat() / maxOf(rPage.width, rPage.height).toFloat())
             val bmpW = (rPage.width * renderScale).toInt().coerceAtLeast(1)
             val bmpH = (rPage.height * renderScale).toInt().coerceAtLeast(1)
             val redactedBmp = Bitmap.createBitmap(bmpW, bmpH, Bitmap.Config.ARGB_8888)

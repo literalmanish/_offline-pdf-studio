@@ -47,7 +47,7 @@ class PdfRendererHelper(
 
                 page.render(bitmap, null, null, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY)
                 bitmap
-            } catch (e: Exception) {
+            } catch (t: Throwable) {
                 null
             } finally {
                 page?.close()
@@ -83,7 +83,7 @@ class PdfRendererHelper(
 
                 page.render(bitmap, null, null, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY)
                 bitmap
-            } catch (e: Exception) {
+            } catch (t: Throwable) {
                 null
             } finally {
                 page?.close()
@@ -95,7 +95,10 @@ class PdfRendererHelper(
         try {
             renderer.close()
             pfd.close()
-        } catch (_: Exception) {}
+            if (file.name.startsWith("render_view_")) {
+                file.delete()
+            }
+        } catch (_: Throwable) {}
     }
 
     companion object {
