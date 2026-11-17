@@ -2,6 +2,8 @@ package com.offlinepdf.studio.ui.screens.files
 
 import android.content.Intent
 import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -57,19 +59,24 @@ fun FilesScreen(
     val themeController = LocalThemeController.current
     val isDark = themeController.isDark
 
-    // Theme responsive colors
-    val bgColor = if (isDark) DarkMainBg else LightMainBg
-    val cardBg = if (isDark) DarkToolCard else LightToolCard
-    val iconContainerBg = if (isDark) DarkBottomNav else BorderLight
-    val textPrimary = if (isDark) TextPrimaryDark else TextPrimaryLight
-    val textSecondary = if (isDark) TextSecondaryDark else TextSecondaryLight
-    val borderColor = if (isDark) BorderDark else BorderLight
+    // Exact user palette mapped colors
+    val bgColor = AppTheme.bg
+    val surfaceColor = AppTheme.surface
+    val surface2Color = AppTheme.surface2
+    val headingColor = AppTheme.heading
+    val textColor = AppTheme.text
+    val mutedColor = AppTheme.muted
+    val borderColor = AppTheme.border
+    val primaryColor = AppTheme.primary
+    val accentColor = AppTheme.accent
+    val errorColor = AppTheme.error
 
     var processedFiles by remember { mutableStateOf<List<File>>(emptyList()) }
     var downloadFiles by remember { mutableStateOf<List<File>>(emptyList()) }
     var internalFolders by remember { mutableStateOf<List<StorageFolder>>(emptyList()) }
     var recycleBinFiles by remember { mutableStateOf<List<File>>(emptyList()) }
     var favorites by remember { mutableStateOf<Set<String>>(emptySet()) }
+    var isLoading by remember { mutableStateOf(false) }
 
     var navState by remember { mutableStateOf<FilesNavigationState>(FilesNavigationState.RootOverview) }
     var isSearchActive by remember { mutableStateOf(false) }
@@ -83,22 +90,26 @@ fun FilesScreen(
         File(context.filesDir, "pdf_documents").apply { if (!exists()) mkdirs() }
     }
 
-    fun loadAllFiles() {
+    fun loadAllFiles(invalidateCache: Boolean = false) {
+        if (invalidateCache) {
+            PdfStorageScanner.invalidateCache()
+        }
         coroutineScope.launch {
+            isLoading = true
             hasPermission = PdfStorageScanner.hasAllFilesPermission()
 
             withContext(Dispatchers.IO) {
-                // 1. Processed files
+                // 1. Processed documents in app sandbox (instant)
                 val processed = processedDir.listFiles { f -> f.extension.equals("pdf", true) }
                     ?.sortedByDescending { it.lastModified() } ?: emptyList()
 
-                // 2. All Downloads PDFs (scans entire Downloads tree + media store)
+                // 2. High-speed indexed Downloads discovery
                 val downloads = PdfStorageScanner.getDownloadsPdfs(context)
 
-                // 3. Scan all internal storage folders containing PDFs
+                // 3. High-speed indexed Internal Storage discovery
                 val folders = PdfStorageScanner.getAllInternalStorageFolders(context)
 
-                // 4. Recycle bin files
+                // 4. Recycle bin
                 val bin = recycleBinDir.listFiles { f -> f.extension.equals("pdf", true) }
                     ?.sortedByDescending { it.lastModified() } ?: emptyList()
 
@@ -107,13 +118,14 @@ fun FilesScreen(
                     downloadFiles = downloads
                     internalFolders = folders
                     recycleBinFiles = bin
+                    isLoading = false
                 }
             }
         }
     }
 
     LaunchedEffect(Unit) {
-        loadAllFiles()
+        loadAllFiles(invalidateCache = false)
     }
 
     val totalInternalPdfCount = remember(internalFolders, processedFiles, downloadFiles) {
@@ -135,13 +147,13 @@ fun FilesScreen(
                                     modifier = Modifier
                                         .size(36.dp)
                                         .clip(RoundedCornerShape(10.dp))
-                                        .background(PinkAccent),
+                                        .background(primaryColor),
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Icon(
                                         imageVector = Icons.Default.PictureAsPdf,
                                         contentDescription = "App Logo",
-                                        tint = Color.Black,
+                                        tint = Color.White,
                                         modifier = Modifier.size(20.dp)
                                     )
                                 }
@@ -149,7 +161,7 @@ fun FilesScreen(
                                     text = "Offline PDF Studio",
                                     fontWeight = FontWeight.Bold,
                                     style = MaterialTheme.typography.titleLarge,
-                                    color = textPrimary
+                                    color = headingColor
                                 )
                             }
                         }
@@ -159,13 +171,13 @@ fun FilesScreen(
                                 horizontalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
                                 IconButton(onClick = { navState = FilesNavigationState.RootOverview }) {
-                                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = textPrimary)
+                                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = headingColor)
                                 }
                                 Text(
                                     text = "Internal Folders",
                                     fontWeight = FontWeight.Bold,
                                     style = MaterialTheme.typography.titleLarge,
-                                    color = textPrimary
+                                    color = headingColor
                                 )
                             }
                         }
@@ -175,19 +187,19 @@ fun FilesScreen(
                                 horizontalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
                                 IconButton(onClick = {
-                                    navState = if (state.title == "All Internal PDFs" || state.title.contains("Folder")) {
+                                    navState = if (state.title == "All Internal PDFs" || state.title.contains("Folder") || state.title.contains("Documents")) {
                                         FilesNavigationState.InternalFolderList
                                     } else {
                                         FilesNavigationState.RootOverview
                                     }
                                 }) {
-                                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = textPrimary)
+                                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = headingColor)
                                 }
                                 Text(
                                     text = state.title,
                                     fontWeight = FontWeight.Bold,
                                     style = MaterialTheme.typography.titleLarge,
-                                    color = textPrimary,
+                                    color = headingColor,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis
                                 )
@@ -196,12 +208,12 @@ fun FilesScreen(
                     }
                 },
                 actions = {
-                    // Header Dark/Light Mode Toggle Button
+                    // Header Dark/Light Mode Instant Toggle Button
                     IconButton(onClick = { themeController.toggleTheme() }) {
                         Icon(
                             imageVector = if (isDark) Icons.Outlined.LightMode else Icons.Outlined.DarkMode,
                             contentDescription = if (isDark) "Switch to Light Mode" else "Switch to Dark Mode",
-                            tint = if (isDark) PastelYellow else PinkAccent
+                            tint = if (isDark) accentColor else primaryColor
                         )
                     }
 
@@ -210,23 +222,24 @@ fun FilesScreen(
                         Icon(
                             imageVector = if (isSearchActive) Icons.Default.Close else Icons.Default.Search,
                             contentDescription = "Search",
-                            tint = textPrimary
+                            tint = headingColor
                         )
                     }
 
-                    // Profile / Settings Avatar
+                    // Profile / Settings Button
                     IconButton(onClick = { onNavigateTo(Screen.Settings) }) {
                         Box(
                             modifier = Modifier
                                 .size(34.dp)
                                 .clip(CircleShape)
-                                .background(iconContainerBg),
+                                .background(surface2Color)
+                                .border(1.dp, borderColor, CircleShape),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Person,
                                 contentDescription = "Profile",
-                                tint = PinkAccent,
+                                tint = primaryColor,
                                 modifier = Modifier.size(20.dp)
                             )
                         }
@@ -243,29 +256,29 @@ fun FilesScreen(
                 .padding(innerPadding)
                 .padding(horizontal = 16.dp)
         ) {
-            // Live Search Input when search is active
+            // Live Search Input when active
             AnimatedVisibility(visible = isSearchActive) {
                 Column(modifier = Modifier.padding(bottom = 12.dp)) {
                     OutlinedTextField(
                         value = searchQuery,
                         onValueChange = { searchQuery = it },
-                        placeholder = { Text("Search PDF files across storage...", color = textSecondary) },
-                        leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = textSecondary) },
+                        placeholder = { Text("Search PDF documents...", color = mutedColor) },
+                        leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = mutedColor) },
                         trailingIcon = {
                             if (searchQuery.isNotEmpty()) {
                                 IconButton(onClick = { searchQuery = "" }) {
-                                    Icon(Icons.Default.Clear, contentDescription = "Clear", tint = textSecondary)
+                                    Icon(Icons.Default.Clear, contentDescription = "Clear", tint = mutedColor)
                                 }
                             }
                         },
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(14.dp),
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = PinkAccent,
+                            focusedBorderColor = primaryColor,
                             unfocusedBorderColor = borderColor,
-                            focusedTextColor = textPrimary,
-                            unfocusedTextColor = textPrimary,
-                            cursorColor = PinkAccent
+                            focusedTextColor = headingColor,
+                            unfocusedTextColor = headingColor,
+                            cursorColor = primaryColor
                         ),
                         singleLine = true
                     )
@@ -280,8 +293,8 @@ fun FilesScreen(
                         .padding(bottom = 12.dp)
                         .clickable { PdfStorageScanner.requestAllFilesPermission(context) },
                     shape = RoundedCornerShape(14.dp),
-                    colors = CardDefaults.cardColors(containerColor = cardBg),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, PinkAccent.copy(alpha = 0.5f))
+                    colors = CardDefaults.cardColors(containerColor = surfaceColor),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, primaryColor.copy(alpha = 0.5f))
                 ) {
                     Row(
                         modifier = Modifier.padding(14.dp),
@@ -292,24 +305,24 @@ fun FilesScreen(
                             modifier = Modifier
                                 .size(38.dp)
                                 .clip(RoundedCornerShape(10.dp))
-                                .background(PinkAccent.copy(alpha = 0.15f)),
+                                .background(primaryColor.copy(alpha = 0.15f)),
                             contentAlignment = Alignment.Center
                         ) {
-                            Icon(Icons.Outlined.FolderSpecial, contentDescription = null, tint = PinkAccent, modifier = Modifier.size(20.dp))
+                            Icon(Icons.Outlined.FolderSpecial, contentDescription = null, tint = primaryColor, modifier = Modifier.size(20.dp))
                         }
                         Column(modifier = Modifier.weight(1f)) {
-                            Text("Full Storage Access", fontWeight = FontWeight.SemiBold, color = textPrimary, style = MaterialTheme.typography.bodyMedium)
-                            Text("Tap to grant access to view all folders and PDFs on device", color = textSecondary, style = MaterialTheme.typography.bodySmall)
+                            Text("Storage Access", fontWeight = FontWeight.SemiBold, color = headingColor, style = MaterialTheme.typography.bodyMedium)
+                            Text("Tap to grant access to view all folders and PDFs on device", color = textColor, style = MaterialTheme.typography.bodySmall)
                         }
                         TextButton(onClick = { PdfStorageScanner.requestAllFilesPermission(context) }) {
-                            Text("Grant", color = PinkAccent, fontWeight = FontWeight.Bold)
+                            Text("Grant", color = primaryColor, fontWeight = FontWeight.Bold)
                         }
                     }
                 }
             }
 
             when (val state = navState) {
-                // 1. Root My Storage Overview
+                // 1. Root "My storage" screen
                 is FilesNavigationState.RootOverview -> {
                     Column(
                         modifier = Modifier
@@ -321,45 +334,48 @@ fun FilesScreen(
                             text = "My storage",
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
-                            color = textPrimary,
+                            color = headingColor,
                             modifier = Modifier.padding(top = 4.dp, bottom = 2.dp)
                         )
 
                         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                            // A. Internal Storage -> Opens folders list
+                            // A. Internal Storage -> Instant folder browser
                             StorageRowItem(
                                 title = "Internal Storage",
                                 count = totalInternalPdfCount,
                                 icon = Icons.Outlined.PhoneAndroid,
-                                containerBg = iconContainerBg,
-                                textPrimary = textPrimary,
-                                textSecondary = textSecondary,
+                                containerBg = surface2Color,
+                                primaryColor = primaryColor,
+                                textPrimary = headingColor,
+                                textSecondary = mutedColor,
                                 onClick = {
                                     navState = FilesNavigationState.InternalFolderList
                                 }
                             )
 
-                            // B. Downloads -> Opens all downloaded PDFs
+                            // B. Downloads -> All PDF files in downloads
                             StorageRowItem(
                                 title = "Downloads",
                                 count = downloadFiles.size,
                                 icon = Icons.Outlined.Download,
-                                containerBg = iconContainerBg,
-                                textPrimary = textPrimary,
-                                textSecondary = textSecondary,
+                                containerBg = surface2Color,
+                                primaryColor = primaryColor,
+                                textPrimary = headingColor,
+                                textSecondary = mutedColor,
                                 onClick = {
                                     navState = FilesNavigationState.FileList("Downloads", downloadFiles)
                                 }
                             )
 
-                            // C. Processed files -> Opens processed documents
+                            // C. Processed files -> Output documents from PDF studio
                             StorageRowItem(
                                 title = "Processed files",
                                 count = processedFiles.size,
                                 icon = Icons.Outlined.CheckCircle,
-                                containerBg = iconContainerBg,
-                                textPrimary = textPrimary,
-                                textSecondary = textSecondary,
+                                containerBg = surface2Color,
+                                primaryColor = primaryColor,
+                                textPrimary = headingColor,
+                                textSecondary = mutedColor,
                                 onClick = {
                                     navState = FilesNavigationState.FileList("Processed files", processedFiles)
                                 }
@@ -371,7 +387,7 @@ fun FilesScreen(
                             text = "Others",
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
-                            color = textPrimary,
+                            color = headingColor,
                             modifier = Modifier.padding(top = 10.dp, bottom = 2.dp)
                         )
 
@@ -379,9 +395,10 @@ fun FilesScreen(
                             title = "Bin",
                             count = recycleBinFiles.size,
                             icon = Icons.Outlined.Delete,
-                            containerBg = iconContainerBg,
-                            textPrimary = textPrimary,
-                            textSecondary = textSecondary,
+                            containerBg = surface2Color,
+                            primaryColor = errorColor,
+                            textPrimary = headingColor,
+                            textSecondary = mutedColor,
                             onClick = {
                                 navState = FilesNavigationState.FileList("Bin", recycleBinFiles, isBin = true)
                             }
@@ -404,13 +421,13 @@ fun FilesScreen(
                             Text(
                                 text = "${internalFolders.size} Folders containing PDFs",
                                 style = MaterialTheme.typography.bodyMedium,
-                                color = textSecondary
+                                color = mutedColor
                             )
                             TextButton(onClick = {
                                 val allFiles = internalFolders.flatMap { it.files }.distinctBy { it.absolutePath }
                                 navState = FilesNavigationState.FileList("All Internal PDFs", allFiles)
                             }) {
-                                Text("View All ($totalInternalPdfCount)", color = PinkAccent, fontWeight = FontWeight.Bold)
+                                Text("View All ($totalInternalPdfCount)", color = primaryColor, fontWeight = FontWeight.Bold)
                             }
                         }
 
@@ -420,9 +437,9 @@ fun FilesScreen(
                                 contentAlignment = Alignment.Center
                             ) {
                                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                    Icon(Icons.Outlined.FolderOpen, contentDescription = null, tint = textSecondary, modifier = Modifier.size(54.dp))
+                                    Icon(Icons.Outlined.FolderOpen, contentDescription = null, tint = mutedColor, modifier = Modifier.size(54.dp))
                                     Spacer(modifier = Modifier.height(8.dp))
-                                    Text("No folders found with PDF files", color = textSecondary)
+                                    Text("No folders found with PDF files", color = mutedColor)
                                 }
                             }
                         } else {
@@ -439,7 +456,7 @@ fun FilesScreen(
                                                 navState = FilesNavigationState.FileList(folder.name, folder.files)
                                             },
                                         shape = RoundedCornerShape(14.dp),
-                                        colors = CardDefaults.cardColors(containerColor = cardBg),
+                                        colors = CardDefaults.cardColors(containerColor = surfaceColor),
                                         border = androidx.compose.foundation.BorderStroke(1.dp, borderColor)
                                     ) {
                                         Row(
@@ -453,13 +470,13 @@ fun FilesScreen(
                                                 modifier = Modifier
                                                     .size(46.dp)
                                                     .clip(RoundedCornerShape(12.dp))
-                                                    .background(iconContainerBg),
+                                                    .background(surface2Color),
                                                 contentAlignment = Alignment.Center
                                             ) {
                                                 Icon(
                                                     imageVector = Icons.Filled.Folder,
                                                     contentDescription = folder.name,
-                                                    tint = PinkAccent,
+                                                    tint = primaryColor,
                                                     modifier = Modifier.size(24.dp)
                                                 )
                                             }
@@ -469,14 +486,14 @@ fun FilesScreen(
                                                     text = folder.name,
                                                     style = MaterialTheme.typography.bodyLarge,
                                                     fontWeight = FontWeight.SemiBold,
-                                                    color = textPrimary,
+                                                    color = headingColor,
                                                     maxLines = 1,
                                                     overflow = TextOverflow.Ellipsis
                                                 )
                                                 Text(
                                                     text = folder.path,
                                                     style = MaterialTheme.typography.bodySmall,
-                                                    color = textSecondary,
+                                                    color = mutedColor,
                                                     maxLines = 1,
                                                     overflow = TextOverflow.Ellipsis
                                                 )
@@ -484,11 +501,11 @@ fun FilesScreen(
 
                                             Surface(
                                                 shape = RoundedCornerShape(10.dp),
-                                                color = iconContainerBg
+                                                color = surface2Color
                                             ) {
                                                 Text(
                                                     text = "${folder.files.size} PDFs",
-                                                    color = textPrimary,
+                                                    color = headingColor,
                                                     style = MaterialTheme.typography.labelSmall,
                                                     fontWeight = FontWeight.SemiBold,
                                                     modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
@@ -498,7 +515,7 @@ fun FilesScreen(
                                             Icon(
                                                 imageVector = Icons.Default.ChevronRight,
                                                 contentDescription = null,
-                                                tint = textSecondary,
+                                                tint = mutedColor,
                                                 modifier = Modifier.size(20.dp)
                                             )
                                         }
@@ -530,16 +547,16 @@ fun FilesScreen(
                             Text(
                                 text = "${filteredFiles.size} document${if (filteredFiles.size == 1) "" else "s"}",
                                 style = MaterialTheme.typography.bodyMedium,
-                                color = textSecondary
+                                color = mutedColor
                             )
 
                             if (state.isBin && recycleBinFiles.isNotEmpty()) {
                                 TextButton(onClick = {
                                     recycleBinFiles.forEach { it.delete() }
-                                    loadAllFiles()
+                                    loadAllFiles(invalidateCache = true)
                                     Toast.makeText(context, "Bin emptied", Toast.LENGTH_SHORT).show()
                                 }) {
-                                    Text("Empty Bin", color = StatusError, fontWeight = FontWeight.Bold)
+                                    Text("Empty Bin", color = errorColor, fontWeight = FontWeight.Bold)
                                 }
                             }
                         }
@@ -553,13 +570,13 @@ fun FilesScreen(
                                     Icon(
                                         imageVector = if (state.isBin) Icons.Outlined.Delete else Icons.Outlined.FolderOpen,
                                         contentDescription = null,
-                                        tint = textSecondary,
+                                        tint = mutedColor,
                                         modifier = Modifier.size(54.dp)
                                     )
                                     Spacer(modifier = Modifier.height(10.dp))
                                     Text(
                                         text = if (state.isBin) "Recycle Bin is empty" else "No PDF files in this folder",
-                                        color = textSecondary,
+                                        color = mutedColor,
                                         style = MaterialTheme.typography.bodyMedium
                                     )
                                 }
@@ -575,7 +592,7 @@ fun FilesScreen(
                                         Card(
                                             modifier = Modifier.fillMaxWidth(),
                                             shape = RoundedCornerShape(14.dp),
-                                            colors = CardDefaults.cardColors(containerColor = cardBg),
+                                            colors = CardDefaults.cardColors(containerColor = surfaceColor),
                                             border = androidx.compose.foundation.BorderStroke(1.dp, borderColor)
                                         ) {
                                             Row(
@@ -588,34 +605,34 @@ fun FilesScreen(
                                                     modifier = Modifier
                                                         .size(40.dp)
                                                         .clip(RoundedCornerShape(10.dp))
-                                                        .background(StatusError.copy(alpha = 0.15f)),
+                                                        .background(errorColor.copy(alpha = 0.15f)),
                                                     contentAlignment = Alignment.Center
                                                 ) {
-                                                    Icon(Icons.Default.Delete, contentDescription = null, tint = StatusError, modifier = Modifier.size(20.dp))
+                                                    Icon(Icons.Default.Delete, contentDescription = null, tint = errorColor, modifier = Modifier.size(20.dp))
                                                 }
 
                                                 Spacer(modifier = Modifier.width(12.dp))
 
                                                 Column(modifier = Modifier.weight(1f)) {
-                                                    Text(file.name, color = textPrimary, maxLines = 1, fontWeight = FontWeight.Medium)
-                                                    Text("${file.length() / 1024} KB", color = textSecondary, style = MaterialTheme.typography.bodySmall)
+                                                    Text(file.name, color = headingColor, maxLines = 1, fontWeight = FontWeight.Medium)
+                                                    Text("${file.length() / 1024} KB", color = mutedColor, style = MaterialTheme.typography.bodySmall)
                                                 }
 
                                                 TextButton(onClick = {
                                                     val restoredDest = File(processedDir, file.name)
                                                     file.renameTo(restoredDest)
-                                                    loadAllFiles()
+                                                    loadAllFiles(invalidateCache = true)
                                                     Toast.makeText(context, "Restored to Processed files", Toast.LENGTH_SHORT).show()
                                                 }) {
-                                                    Text("Restore", color = PinkAccent, fontWeight = FontWeight.Bold)
+                                                    Text("Restore", color = primaryColor, fontWeight = FontWeight.Bold)
                                                 }
 
                                                 IconButton(onClick = {
                                                     file.delete()
-                                                    loadAllFiles()
+                                                    loadAllFiles(invalidateCache = true)
                                                     Toast.makeText(context, "Deleted permanently", Toast.LENGTH_SHORT).show()
                                                 }) {
-                                                    Icon(Icons.Default.DeleteForever, contentDescription = "Permanent Delete", tint = StatusError)
+                                                    Icon(Icons.Default.DeleteForever, contentDescription = "Permanent Delete", tint = errorColor)
                                                 }
                                             }
                                         }
@@ -637,7 +654,7 @@ fun FilesScreen(
                                             onDelete = {
                                                 val dest = File(recycleBinDir, file.name)
                                                 file.renameTo(dest)
-                                                loadAllFiles()
+                                                loadAllFiles(invalidateCache = true)
                                                 Toast.makeText(context, "Moved to Bin", Toast.LENGTH_SHORT).show()
                                             },
                                             onToggleFavorite = {
@@ -661,6 +678,7 @@ private fun StorageRowItem(
     count: Int,
     icon: ImageVector,
     containerBg: Color,
+    primaryColor: Color,
     textPrimary: Color,
     textSecondary: Color,
     onClick: () -> Unit
@@ -684,7 +702,7 @@ private fun StorageRowItem(
             Icon(
                 imageVector = icon,
                 contentDescription = title,
-                tint = PinkAccent,
+                tint = primaryColor,
                 modifier = Modifier.size(26.dp)
             )
         }
