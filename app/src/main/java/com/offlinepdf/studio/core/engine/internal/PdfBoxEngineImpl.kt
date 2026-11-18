@@ -7,9 +7,13 @@ import android.graphics.Color
 import android.graphics.ColorMatrix
 import android.graphics.ColorMatrixColorFilter
 import android.graphics.Paint
+import android.graphics.Typeface
 import android.graphics.pdf.PdfRenderer
 import android.net.Uri
 import android.os.ParcelFileDescriptor
+import android.text.Layout
+import android.text.StaticLayout
+import android.text.TextPaint
 import com.offlinepdf.studio.core.engine.PdfEngine
 import com.offlinepdf.studio.core.engine.model.*
 import com.offlinepdf.studio.core.util.FileStorageManager
@@ -582,7 +586,7 @@ class PdfBoxEngineImpl(
         }
     }
 
-    // 15. Text to PDF
+    // 15. Text to PDF with Full Native Unicode & Devanagari Complex Text Shaping
     override suspend fun textToPdf(
         text: String,
         title: String,
@@ -590,97 +594,120 @@ class PdfBoxEngineImpl(
         onProgress: (ProcessingProgress) -> Unit
     ): EngineResult<File> = withContext(Dispatchers.IO) {
         val outputFile = storageManager.createOutputFile(outputBaseName)
+        val pdfDocument = android.graphics.pdf.PdfDocument()
         try {
-            PDDocument().use { doc ->
-                val lines = text.lines()
-                
-                // Prioritize loading system TrueType font for complete Unicode/International character support
-                val candidateFontFiles = listOf(
-                    File("/system/fonts/Roboto-Regular.ttf"),
-                    File("/system/fonts/NotoSans-Regular.ttf"),
-                    File("/system/fonts/DroidSans.ttf")
-                )
-                val systemFontFile = candidateFontFiles.firstOrNull { it.exists() && it.canRead() }
-                
-                val font: PDFont = try {
-                    if (systemFontFile != null) PDType0Font.load(doc, systemFontFile) else PDType1Font.HELVETICA
-                } catch (_: Throwable) {
-                    PDType1Font.HELVETICA
-                }
-                
-                val titleFont: PDFont = try {
-                    val boldFontFile = File("/system/fonts/Roboto-Bold.ttf")
-                    if (boldFontFile.exists() && boldFontFile.canRead()) PDType0Font.load(doc, boldFontFile) else font
-                } catch (_: Throwable) {
-                    PDType1Font.HELVETICA_BOLD
+            onProgress(ProcessingProgress(1, 2, "Measuring and shaping Unicode text layout..."))
+
+            // Standard ISO 216 A4 page dimensions in standard PDF points (72 pt/in)
+            val pageWidth = 595
+            val pageHeight = 842
+            val margin = 48
+            val printableWidth = pageWidth - (margin * 2)
+
+            // High-legibility typography with complete Android font fallback chain (Roboto + Noto Sans Devanagari)
+            val titlePaint = TextPaint().apply {
+                isAntiAlias = true
+                textSize = 17f
+                color = Color.BLACK
+                typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+            }
+
+            val bodyPaint = TextPaint().apply {
+                isAntiAlias = true
+                textSize = 11.5f
+                color = Color.rgb(33, 33, 33)
+                typeface = Typeface.DEFAULT
+            }
+
+            val cleanTitle = title.trim()
+            val cleanText = text.replace("\t", "    ")
+
+            // Build Title StaticLayout if title exists
+            val titleLayout = if (cleanTitle.isNotBlank()) {
+                StaticLayout.Builder.obtain(cleanTitle, 0, cleanTitle.length, titlePaint, printableWidth)
+                    .setAlignment(Layout.Alignment.ALIGN_NORMAL)
+                    .setIncludePad(false)
+                    .build()
+            } else null
+
+            // Build Body StaticLayout with HarfBuzz complex shaping, ligatures, and word wrapping
+            val bodyLayout = if (cleanText.isNotEmpty()) {
+                StaticLayout.Builder.obtain(cleanText, 0, cleanText.length, bodyPaint, printableWidth)
+                    .setAlignment(Layout.Alignment.ALIGN_NORMAL)
+                    .setLineSpacing(2f, 1.15f)
+                    .setIncludePad(true)
+                    .build()
+            } else null
+
+            val totalBodyLines = bodyLayout?.lineCount ?: 0
+            var currentBodyLine = 0
+            var pageIndex = 0
+
+            onProgress(ProcessingProgress(2, 2, "Generating vector PDF pages..."))
+
+            while (currentBodyLine < totalBodyLines || pageIndex == 0) {
+                coroutineContext.ensureActive()
+                val pageInfo = android.graphics.pdf.PdfDocument.PageInfo.Builder(pageWidth, pageHeight, pageIndex + 1).create()
+                val page = pdfDocument.startPage(pageInfo)
+                val canvas = page.canvas
+
+                var availableY = margin.toFloat()
+
+                // Render Title on first page only
+                if (pageIndex == 0 && titleLayout != null) {
+                    canvas.save()
+                    canvas.translate(margin.toFloat(), availableY)
+                    titleLayout.draw(canvas)
+                    canvas.restore()
+                    availableY += titleLayout.height + 18f
                 }
 
-                fun sanitizeLine(raw: String, targetFont: PDFont): String {
-                    val clean = raw.replace("\t", "    ")
-                    val sb = StringBuilder(clean.length)
-                    var i = 0
-                    while (i < clean.length) {
-                        val cp = clean.codePointAt(i)
-                        val charStr = String(Character.toChars(cp))
-                        try {
-                            targetFont.encode(charStr)
-                            sb.append(charStr)
-                        } catch (_: Throwable) {
-                            // Replace unsupported glyph gracefully with ? instead of stripping text
-                            sb.append('?')
+                if (bodyLayout != null && currentBodyLine < totalBodyLines) {
+                    val pageContentHeight = (pageHeight - margin).toFloat() - availableY
+                    val startLineForPage = currentBodyLine
+                    val startLineTop = bodyLayout.getLineTop(startLineForPage)
+
+                    var endLineForPage = startLineForPage
+                    while (endLineForPage < totalBodyLines) {
+                        val currentHeight = bodyLayout.getLineBottom(endLineForPage) - startLineTop
+                        if (currentHeight > pageContentHeight && endLineForPage > startLineForPage) {
+                            break
                         }
-                        i += Character.charCount(cp)
+                        endLineForPage++
                     }
-                    return sb.toString()
+
+                    canvas.save()
+                    // Clip canvas strictly to printable bounds to prevent bleeding
+                    canvas.clipRect(
+                        margin.toFloat(),
+                        availableY,
+                        (pageWidth - margin).toFloat(),
+                        (pageHeight - margin).toFloat()
+                    )
+                    canvas.translate(margin.toFloat(), availableY - startLineTop)
+                    bodyLayout.draw(canvas)
+                    canvas.restore()
+
+                    currentBodyLine = endLineForPage
                 }
 
-                val fontSize = 11f
-                val lineHeight = 15f
-                val margin = 50f
-                val pageHeight = PDRectangle.A4.height
-                val startY = pageHeight - margin
+                pdfDocument.finishPage(page)
+                pageIndex++
 
-                var page = PDPage(PDRectangle.A4)
-                doc.addPage(page)
-                var cs = PDPageContentStream(doc, page)
-                var y = startY
-
-                // Title
-                cs.beginText()
-                cs.setFont(titleFont, 16f)
-                cs.newLineAtOffset(margin, y)
-                cs.showText(sanitizeLine(title, titleFont))
-                cs.endText()
-                y -= 30f
-
-                cs.beginText()
-                cs.setFont(font, fontSize)
-                cs.newLineAtOffset(margin, y)
-
-                for (line in lines) {
-                    if (y < margin + 20f) {
-                        cs.endText()
-                        cs.close()
-                        page = PDPage(PDRectangle.A4)
-                        doc.addPage(page)
-                        cs = PDPageContentStream(doc, page)
-                        y = startY
-                        cs.beginText()
-                        cs.setFont(font, fontSize)
-                        cs.newLineAtOffset(margin, y)
-                    }
-                    val safeLine = sanitizeLine(line, font)
-                    cs.showText(safeLine)
-                    cs.newLineAtOffset(0f, -lineHeight)
-                    y -= lineHeight
+                // Handle single-page empty document case
+                if (bodyLayout == null || currentBodyLine >= totalBodyLines) {
+                    break
                 }
-                cs.endText()
-                cs.close()
-                doc.save(outputFile)
+            }
+
+            FileOutputStream(outputFile).use { out ->
+                pdfDocument.writeTo(out)
             }
             EngineResult.Success(outputFile)
         } catch (t: Throwable) {
-            EngineResult.Error(Exception(t), "Text to PDF failed: ${t.localizedMessage ?: "Conversion error"}")
+            EngineResult.Error(Exception(t), "Text to PDF failed: ${t.localizedMessage ?: "Layout or writing error"}")
+        } finally {
+            try { pdfDocument.close() } catch (_: Throwable) {}
         }
     }
 
