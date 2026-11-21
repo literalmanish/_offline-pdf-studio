@@ -81,6 +81,7 @@ jobs:
             echo "has_signing=true" >> $GITHUB_OUTPUT
             mkdir -p $HOME/keystore
             echo "$KEYSTORE_BASE64" | base64 -d > $HOME/keystore/release.keystore
+            chmod 600 $HOME/keystore/release.keystore
             echo "ANDROID_UPLOAD_KEYSTORE_PATH=$HOME/keystore/release.keystore" >> $GITHUB_ENV
             echo "ANDROID_UPLOAD_KEYSTORE_PASSWORD=$STORE_PASS" >> $GITHUB_ENV
             echo "ANDROID_UPLOAD_KEY_ALIAS=$KEY_ALIAS" >> $GITHUB_ENV

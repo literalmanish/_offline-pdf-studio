@@ -123,6 +123,7 @@ dependencies {
 tasks.register("validateReleaseArtifacts") {
     group = "verification"
     description = "Validates release APK and AAB package identity, permissions, and checksums"
+    mustRunAfter("assembleRelease", "bundleRelease")
 
     doLast {
         val releaseApkDir = file("build/outputs/apk/release")
