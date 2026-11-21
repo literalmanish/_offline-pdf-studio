@@ -149,6 +149,15 @@ fun HomeScreen(
                 )
             }
 
+            val onQuickToolClick: (com.offlinepdf.studio.core.engine.model.StudioTool) -> Unit = { tool ->
+                when (tool.id) {
+                    "merge" -> onNavigateTo(Screen.Merge)
+                    "split" -> onNavigateTo(Screen.Split)
+                    "compress" -> onNavigateTo(Screen.Compress)
+                    else -> onNavigateTo(Screen.ToolAction(tool.id))
+                }
+            }
+
             // Quick Tools 3-column row
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -158,14 +167,7 @@ fun HomeScreen(
                     Box(modifier = Modifier.weight(1f)) {
                         ThreeColumnToolItem(
                             tool = tool,
-                            onClick = {
-                                when (tool.id) {
-                                    "merge" -> onNavigateTo(Screen.Merge)
-                                    "split" -> onNavigateTo(Screen.Split)
-                                    "compress" -> onNavigateTo(Screen.Compress)
-                                    else -> onNavigateTo(Screen.ToolAction(tool.id))
-                                }
-                            }
+                            onClick = { onQuickToolClick(tool) }
                         )
                     }
                 }
@@ -179,7 +181,7 @@ fun HomeScreen(
                     Box(modifier = Modifier.weight(1f)) {
                         ThreeColumnToolItem(
                             tool = tool,
-                            onClick = { onNavigateTo(Screen.ToolAction(tool.id)) }
+                            onClick = { onQuickToolClick(tool) }
                         )
                     }
                 }

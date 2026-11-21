@@ -108,7 +108,10 @@ class MainActivity : ComponentActivity() {
 
     private fun handleIntent(intent: Intent?) {
         if (intent?.action == Intent.ACTION_VIEW && intent.data != null) {
-            incomingPdfUri = intent.data
+            val scheme = intent.data?.scheme?.lowercase()
+            if (scheme == "content" || scheme == "file") {
+                incomingPdfUri = intent.data
+            }
         }
     }
 }

@@ -260,7 +260,7 @@ fun SettingsScreen(
 
             SettingsItemCard(
                 title = "Offline PDF Studio",
-                subtitle = "Version 2.1.0 (Native Android) • All 36 Tools Active",
+                subtitle = "Version 2.4.0 (Native Android) • All 36 Tools Active",
                 icon = Icons.Outlined.Info,
                 iconTint = PastelTeal,
                 onClick = { showAboutDialog = true }
@@ -552,7 +552,7 @@ fun SettingsScreen(
                 title = { Text("About Offline PDF Studio", fontWeight = FontWeight.Bold) },
                 text = {
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text("• Version: 2.1.0 (Production Ready)", color = TextPrimaryDark, fontWeight = FontWeight.SemiBold)
+                        Text("• Version: 2.4.0 (Production Ready)", color = TextPrimaryDark, fontWeight = FontWeight.SemiBold)
                         Text("• 36 Native PDF Utilities & Direct Downloads")
                         Text("• Built with Kotlin 2.1 & Jetpack Compose (Material 3)")
                         Text("• Engine: Apache PDFBox-Android & Android PdfRenderer")

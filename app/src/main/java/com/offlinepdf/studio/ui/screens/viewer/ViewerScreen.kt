@@ -25,6 +25,7 @@ import androidx.compose.ui.unit.dp
 import com.offlinepdf.studio.core.renderer.PdfRendererHelper
 import com.offlinepdf.studio.ui.theme.*
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -43,15 +44,17 @@ fun ViewerScreen(
     var currentPageIndex by remember { mutableIntStateOf(0) }
     var currentBitmap by remember { mutableStateOf<Bitmap?>(null) }
     var isLoading by remember { mutableStateOf(false) }
+    var renderJob by remember { mutableStateOf<Job?>(null) }
 
     fun loadPage(index: Int) {
         val helper = rendererHelper ?: return
         if (index !in 0 until totalPages) return
+        currentPageIndex = index
         isLoading = true
-        coroutineScope.launch {
+        renderJob?.cancel()
+        renderJob = coroutineScope.launch {
             val bmp = helper.renderPage(index, destWidth = 1080)
             currentBitmap = bmp
-            currentPageIndex = index
             isLoading = false
         }
     }
@@ -60,6 +63,7 @@ fun ViewerScreen(
         activeUri = uri
         coroutineScope.launch {
             try {
+                renderJob?.cancel()
                 rendererHelper?.close()
                 val helper = PdfRendererHelper.fromUri(context, uri)
                 rendererHelper = helper
@@ -78,6 +82,7 @@ fun ViewerScreen(
 
     DisposableEffect(Unit) {
         onDispose {
+            renderJob?.cancel()
             rendererHelper?.close()
         }
     }

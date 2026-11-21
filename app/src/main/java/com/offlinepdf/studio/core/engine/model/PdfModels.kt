@@ -2,6 +2,8 @@ package com.offlinepdf.studio.core.engine.model
 
 import android.graphics.Bitmap
 import android.net.Uri
+import java.io.File
+import java.io.IOException
 
 data class ProcessingProgress(
     val current: Int,
@@ -10,9 +12,47 @@ data class ProcessingProgress(
     val percentage: Float = if (total > 0) (current.toFloat() / total.toFloat()).coerceIn(0f, 1f) else 0f
 )
 
+/**
+ * Thrown when a file was successfully published/committed to destination storage,
+ * but post-publication verification (e.g. length or structure) failed.
+ *
+ * Carrying [committedFile] ensures that callers and error reporters can distinguish
+ * between failures that occurred before publication (zero output on disk) and post-publication
+ * verification issues (file committed and preserved, but integrity unconfirmed).
+ */
+open class PostPublicationVerificationException(
+    val committedFile: File,
+    message: String,
+    cause: Throwable? = null
+) : IOException(message, cause)
+
 sealed class EngineResult<out T> {
     data class Success<out T>(val data: T) : EngineResult<T>()
-    data class Error(val exception: Throwable, val userMessage: String) : EngineResult<Nothing>()
+    data class Error(
+        val exception: Throwable,
+        val userMessage: String
+    ) : EngineResult<Nothing>() {
+        var committedFile: File? = null
+            private set
+
+        val isPostPublicationFailure: Boolean get() = committedFile != null
+
+        /**
+         * Secondary constructor for post-publication errors where the destination file
+         * was committed to disk before verification failed.
+         *
+         * Note: Because [committedFile] is a class-body property, the compiler-generated
+         * data class [copy] methods operate solely on [exception] and [userMessage]
+         * and do not automatically carry [committedFile].
+         */
+        constructor(
+            exception: Throwable,
+            userMessage: String,
+            committedFile: File?
+        ) : this(exception, userMessage) {
+            this.committedFile = committedFile
+        }
+    }
 }
 
 enum class CompressionLevel(

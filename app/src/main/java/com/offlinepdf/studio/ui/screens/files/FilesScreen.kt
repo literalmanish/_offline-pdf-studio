@@ -1,6 +1,7 @@
 package com.offlinepdf.studio.ui.screens.files
 
 import android.content.Intent
+import android.os.Build
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -81,7 +82,8 @@ fun FilesScreen(
     var navState by remember { mutableStateOf<FilesNavigationState>(FilesNavigationState.RootOverview) }
     var isSearchActive by remember { mutableStateOf(false) }
     var searchQuery by remember { mutableStateOf("") }
-    var hasPermission by remember { mutableStateOf(PdfStorageScanner.hasAllFilesPermission()) }
+    var hasPermission by remember { mutableStateOf(PdfStorageScanner.hasAllFilesPermission(context)) }
+    var showPermissionRationale by remember { mutableStateOf(false) }
 
     val recycleBinDir = remember {
         File(context.filesDir, "recycle_bin").apply { if (!exists()) mkdirs() }
@@ -96,7 +98,7 @@ fun FilesScreen(
         }
         coroutineScope.launch {
             isLoading = true
-            hasPermission = PdfStorageScanner.hasAllFilesPermission()
+            hasPermission = PdfStorageScanner.hasAllFilesPermission(context)
 
             withContext(Dispatchers.IO) {
                 // 1. Processed documents in app sandbox (instant)
@@ -120,6 +122,28 @@ fun FilesScreen(
                     recycleBinFiles = bin
                     isLoading = false
                 }
+            }
+        }
+    }
+
+    val openDocumentLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        if (uri != null) {
+            coroutineScope.launch(Dispatchers.IO) {
+                try {
+                    val (name, _) = storageManager.getUriMetadata(uri)
+                    val target = storageManager.createOutputFile(name)
+                    context.contentResolver.openInputStream(uri)?.use { inStream ->
+                        target.outputStream().use { outStream ->
+                            inStream.copyTo(outStream)
+                        }
+                    }
+                    storageManager.releaseReservation(target)
+                    withContext(Dispatchers.Main) {
+                        loadAllFiles(invalidateCache = true)
+                    }
+                } catch (_: Exception) {}
             }
         }
     }
@@ -285,8 +309,77 @@ fun FilesScreen(
                 }
             }
 
-            // Storage Permission Banner if not yet granted on Android 11+
-            if (!hasPermission) {
+            // Storage Access Banner differentiated by Android API level
+            val currentSdk = PdfStorageScanner.sdkIntProvider()
+            if (!hasPermission && currentSdk >= Build.VERSION_CODES.R) {
+                // Android 11+ (API 30+) All Files Access Settings Flow
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 12.dp)
+                        .clickable { showPermissionRationale = true },
+                    shape = RoundedCornerShape(14.dp),
+                    colors = CardDefaults.cardColors(containerColor = surfaceColor),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, primaryColor.copy(alpha = 0.5f))
+                ) {
+                    Row(
+                        modifier = Modifier.padding(14.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(38.dp)
+                                .clip(RoundedCornerShape(10.dp))
+                                .background(primaryColor.copy(alpha = 0.15f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(Icons.Outlined.FolderSpecial, contentDescription = null, tint = primaryColor, modifier = Modifier.size(20.dp))
+                        }
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text("Storage Access", fontWeight = FontWeight.SemiBold, color = headingColor, style = MaterialTheme.typography.bodyMedium)
+                            Text("Tap to view why all-folder access is needed and how to grant it", color = textColor, style = MaterialTheme.typography.bodySmall)
+                        }
+                        TextButton(onClick = { showPermissionRationale = true }) {
+                            Text("Grant", color = primaryColor, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
+            } else if (!hasPermission && currentSdk == Build.VERSION_CODES.Q) {
+                // Android 10 (API 29) Scoped Storage: Limited access state, SAF import enabled
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 12.dp),
+                    shape = RoundedCornerShape(14.dp),
+                    colors = CardDefaults.cardColors(containerColor = surfaceColor),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, primaryColor.copy(alpha = 0.35f))
+                ) {
+                    Row(
+                        modifier = Modifier.padding(14.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(38.dp)
+                                .clip(RoundedCornerShape(10.dp))
+                                .background(primaryColor.copy(alpha = 0.15f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(Icons.Outlined.FolderSpecial, contentDescription = null, tint = primaryColor, modifier = Modifier.size(20.dp))
+                        }
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text("Scoped Storage (Android 10)", fontWeight = FontWeight.SemiBold, color = headingColor, style = MaterialTheme.typography.bodyMedium)
+                            Text("Running in limited-access mode. Select any PDF to import via system picker", color = textColor, style = MaterialTheme.typography.bodySmall)
+                        }
+                        TextButton(onClick = { openDocumentLauncher.launch(arrayOf("application/pdf")) }) {
+                            Text("Select PDF", color = primaryColor, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
+            } else if (!hasPermission && currentSdk <= Build.VERSION_CODES.P) {
+                // Android 8.0 - 9.0 (API 26-28) Legacy Storage Flow
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -311,14 +404,64 @@ fun FilesScreen(
                             Icon(Icons.Outlined.FolderSpecial, contentDescription = null, tint = primaryColor, modifier = Modifier.size(20.dp))
                         }
                         Column(modifier = Modifier.weight(1f)) {
-                            Text("Storage Access", fontWeight = FontWeight.SemiBold, color = headingColor, style = MaterialTheme.typography.bodyMedium)
-                            Text("Tap to grant access to view all folders and PDFs on device", color = textColor, style = MaterialTheme.typography.bodySmall)
+                            Text("Storage Permission", fontWeight = FontWeight.SemiBold, color = headingColor, style = MaterialTheme.typography.bodyMedium)
+                            Text("Grant read storage permission to scan device documents", color = textColor, style = MaterialTheme.typography.bodySmall)
                         }
                         TextButton(onClick = { PdfStorageScanner.requestAllFilesPermission(context) }) {
                             Text("Grant", color = primaryColor, fontWeight = FontWeight.Bold)
                         }
                     }
                 }
+            }
+
+            if (showPermissionRationale) {
+                androidx.compose.material3.AlertDialog(
+                    onDismissRequest = { showPermissionRationale = false },
+                    icon = {
+                        Icon(Icons.Outlined.FolderSpecial, contentDescription = null, tint = primaryColor)
+                    },
+                    title = {
+                        Text(
+                            text = "All Files Access Required",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = headingColor
+                        )
+                    },
+                    text = {
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Text(
+                                text = "Offline PDF Studio operates 100% offline and on-device without internet access. " +
+                                        "To automatically discover, organize, and manage your PDF documents across all device folders " +
+                                        "(Downloads, Documents, WhatsApp, etc.), Android requires All Files Access.",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = textColor
+                            )
+                            Text(
+                                text = "Your files are never transmitted or shared externally. You can grant or revoke this access at any time in system settings.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = textColor.copy(alpha = 0.8f)
+                            )
+                        }
+                    },
+                    confirmButton = {
+                        TextButton(
+                            onClick = {
+                                showPermissionRationale = false
+                                PdfStorageScanner.requestAllFilesPermission(context)
+                            }
+                        ) {
+                            Text("Continue to Settings", color = primaryColor, fontWeight = FontWeight.Bold)
+                        }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = { showPermissionRationale = false }) {
+                            Text("Not Now", color = textColor)
+                        }
+                    },
+                    containerColor = surfaceColor,
+                    tonalElevation = 6.dp
+                )
             }
 
             when (val state = navState) {

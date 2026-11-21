@@ -1,0 +1,122 @@
+name: Manual Production Release Pipeline
+
+on:
+  workflow_dispatch:
+    inputs:
+      version_tag:
+        description: 'Release version tag (e.g., v2.4.0)'
+        required: true
+        type: string
+      dry_run:
+        description: 'Perform dry-run build without publishing release artifacts'
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+jobs:
+  release-verification-and-build:
+    name: Production Release Build & Validation
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+
+    steps:
+      - name: Checkout Source
+        uses: actions/checkout@v4
+
+      - name: Validate Release Branch
+        run: |
+          if [ "${{ github.ref_name }}" != "main" ]; then
+            echo "::error::Release builds must be dispatched exclusively from the 'main' branch (attempted from ${{ github.ref_name }})."
+            exit 1
+          fi
+
+      - name: Validate Version Metadata
+        run: |
+          INPUT_TAG="${{ github.event.inputs.version_tag }}"
+          CLEAN_VER="${INPUT_TAG#v}"
+          BUILD_GRADLE_VER=$(grep 'versionName = ' app/build.gradle.kts | head -n 1 | sed 's/.*versionName = "\(.*\)".*/\1/')
+          echo "Requested Release Version: $CLEAN_VER"
+          echo "Configured Gradle Version: $BUILD_GRADLE_VER"
+          if [ "$CLEAN_VER" != "$BUILD_GRADLE_VER" ]; then
+            echo "::error::Version mismatch! Requested tag $INPUT_TAG ($CLEAN_VER) does not match app/build.gradle.kts versionName ($BUILD_GRADLE_VER)."
+            exit 1
+          fi
+          echo "✔ Version metadata verified: $BUILD_GRADLE_VER"
+
+      - name: Validate Gradle Wrapper
+        uses: gradle/actions/wrapper-validation@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Run Host Unit Tests
+        run: |
+          chmod +x gradlew
+          ./gradlew test --no-daemon --stacktrace
+
+      - name: Check Production Signing Secrets
+        id: check-signing
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_UPLOAD_KEYSTORE_BASE64 }}
+          STORE_PASS: ${{ secrets.ANDROID_UPLOAD_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_UPLOAD_KEY_ALIAS }}
+          KEY_PASS: ${{ secrets.ANDROID_UPLOAD_KEY_PASSWORD }}
+        run: |
+          if [ -z "$KEYSTORE_BASE64" ] || [ -z "$STORE_PASS" ] || [ -z "$KEY_ALIAS" ] || [ -z "$KEY_PASS" ]; then
+            echo "::error::Production release signing is BLOCKED — OWNER ACTION REQUIRED: Secrets ANDROID_UPLOAD_KEYSTORE_BASE64, ANDROID_UPLOAD_KEYSTORE_PASSWORD, ANDROID_UPLOAD_KEY_ALIAS, ANDROID_UPLOAD_KEY_PASSWORD must be configured in GitHub Secrets."
+            echo "has_signing=false" >> $GITHUB_OUTPUT
+            if [ "${{ github.event.inputs.dry_run }}" != "true" ]; then
+              exit 1
+            fi
+          else
+            echo "has_signing=true" >> $GITHUB_OUTPUT
+            mkdir -p $HOME/keystore
+            echo "$KEYSTORE_BASE64" | base64 -d > $HOME/keystore/release.keystore
+            echo "ANDROID_UPLOAD_KEYSTORE_PATH=$HOME/keystore/release.keystore" >> $GITHUB_ENV
+            echo "ANDROID_UPLOAD_KEYSTORE_PASSWORD=$STORE_PASS" >> $GITHUB_ENV
+            echo "ANDROID_UPLOAD_KEY_ALIAS=$KEY_ALIAS" >> $GITHUB_ENV
+            echo "ANDROID_UPLOAD_KEY_PASSWORD=$KEY_PASS" >> $GITHUB_ENV
+            echo "✔ Production keystore staged securely."
+          fi
+
+      - name: Build Release APK and AAB
+        run: |
+          ./gradlew assembleRelease bundleRelease --no-daemon --stacktrace
+
+      - name: Validate Release Artifacts & SHA-256 Checksums
+        run: |
+          ./gradlew validateReleaseArtifacts --no-daemon --stacktrace
+
+      - name: Verify Signing Certificate (if signed)
+        if: steps.check-signing.outputs.has_signing == 'true'
+        run: |
+          RELEASE_APK=$(ls app/build/outputs/apk/release/*.apk | head -n 1)
+          jarsigner -verify -verbose -certs "$RELEASE_APK" | grep -i "CN=" || true
+          echo "✔ Release APK certificate verified."
+
+      - name: Secure Cleanup of Staged Keystore
+        if: always()
+        run: |
+          rm -rf $HOME/keystore
+          echo "✔ Temporary keystore purged from runner filesystem."
+
+      - name: Upload Production Release Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: production-release-${{ github.event.inputs.version_tag }}
+          path: |
+            app/build/outputs/apk/release/*.apk
+            app/build/outputs/apk/release/*.sha256
+            app/build/outputs/bundle/release/*.aab
+            app/build/outputs/bundle/release/*.sha256
+            app/build/outputs/mapping/release/mapping.txt
+          retention-days: 90

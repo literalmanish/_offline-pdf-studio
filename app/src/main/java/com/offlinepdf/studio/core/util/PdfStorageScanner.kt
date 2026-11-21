@@ -1,12 +1,17 @@
 package com.offlinepdf.studio.core.util
 
+import android.Manifest
+import android.app.Activity
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.os.Environment
 import android.provider.MediaStore
 import android.provider.Settings
+import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
 import java.io.File
 
 data class StorageFolder(
@@ -17,6 +22,22 @@ data class StorageFolder(
 )
 
 object PdfStorageScanner {
+
+    // Injectable providers for deterministic unit testing across API levels
+    var sdkIntProvider: () -> Int = { Build.VERSION.SDK_INT }
+    var externalStorageManagerProvider: () -> Boolean = {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            Environment.isExternalStorageManager()
+        } else {
+            false
+        }
+    }
+    var readPermissionChecker: (Context) -> Boolean = { context ->
+        ContextCompat.checkSelfPermission(
+            context,
+            Manifest.permission.READ_EXTERNAL_STORAGE
+        ) == PackageManager.PERMISSION_GRANTED
+    }
 
     private var cachedFolders: List<StorageFolder>? = null
     private var cachedDownloads: List<File>? = null
@@ -29,28 +50,63 @@ object PdfStorageScanner {
         lastScanTimestamp = 0L
     }
 
-    fun hasAllFilesPermission(): Boolean {
-        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            Environment.isExternalStorageManager()
-        } else {
-            true
+    /**
+     * API-specific broad storage access check:
+     * - Android 11+ (API 30+): Broad document discovery via Environment.isExternalStorageManager()
+     * - Android 10 (API 29): Always returns false. Under scoped storage when targeting SDK 36,
+     *   broad unmediated filesystem crawling is unavailable. The app operates in limited-access mode,
+     *   relying on app-private storage, supported MediaStore documents, and Storage Access Framework (SAF).
+     * - Android 8.0 - 9.0 (API 26-28): Legacy broad shared-storage reading via READ_EXTERNAL_STORAGE runtime permission.
+     */
+    fun hasAllFilesPermission(context: Context? = null): Boolean {
+        val sdk = sdkIntProvider()
+        return when {
+            sdk >= Build.VERSION_CODES.R -> externalStorageManagerProvider()
+            sdk == Build.VERSION_CODES.Q -> false // Scoped storage on API 29: broad filesystem crawling is unavailable
+            sdk in Build.VERSION_CODES.O..Build.VERSION_CODES.P -> {
+                if (context != null) readPermissionChecker(context) else false
+            }
+            else -> false
         }
     }
 
     fun requestAllFilesPermission(context: Context) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            try {
-                val intent = Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION).apply {
-                    data = Uri.parse("package:${context.packageName}")
-                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        val sdk = sdkIntProvider()
+        when {
+            sdk >= Build.VERSION_CODES.R -> {
+                try {
+                    val intent = Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION).apply {
+                        data = Uri.parse("package:${context.packageName}")
+                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    }
+                    context.startActivity(intent)
+                } catch (_: Exception) {
+                    val intent = Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION).apply {
+                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    }
+                    context.startActivity(intent)
                 }
-                context.startActivity(intent)
-            } catch (_: Exception) {
-                val intent = Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION).apply {
-                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                }
-                context.startActivity(intent)
             }
+            sdk in Build.VERSION_CODES.O..Build.VERSION_CODES.P -> {
+                // Android 8.0 - 9.0 (API 26-28): request READ_EXTERNAL_STORAGE runtime permission
+                if (context is Activity) {
+                    ActivityCompat.requestPermissions(
+                        context,
+                        arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE),
+                        1001
+                    )
+                } else {
+                    try {
+                        val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                            data = Uri.parse("package:${context.packageName}")
+                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                        }
+                        context.startActivity(intent)
+                    } catch (_: Exception) {}
+                }
+            }
+            // On API 29 (Android 10): No broad All Files Access flow exists; user-directed SAF is used instead.
+            else -> {}
         }
     }
 

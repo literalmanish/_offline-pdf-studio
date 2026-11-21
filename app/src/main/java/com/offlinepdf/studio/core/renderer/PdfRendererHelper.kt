@@ -11,14 +11,31 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.Closeable
 import java.io.File
+import java.io.IOException
 
-class PdfRendererHelper(
-    private val context: Context,
-    private val file: File
+class PdfRendererHelper private constructor(
+    private val pfd: ParcelFileDescriptor,
+    private val tempFile: File? = null
 ) : Closeable {
 
-    private val pfd: ParcelFileDescriptor = ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY)
-    private val renderer: PdfRenderer = PdfRenderer(pfd)
+    constructor(context: Context, file: File) : this(
+        ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY),
+        if (file.name.startsWith("render_view_")) file else null
+    )
+
+    private val renderer: PdfRenderer
+
+    init {
+        try {
+            renderer = PdfRenderer(pfd)
+        } catch (t: Throwable) {
+            try {
+                pfd.close()
+            } catch (_: Throwable) {}
+            tempFile?.delete()
+            throw t
+        }
+    }
 
     val pageCount: Int
         get() = renderer.pageCount
@@ -94,10 +111,12 @@ class PdfRendererHelper(
     override fun close() {
         try {
             renderer.close()
+        } catch (_: Throwable) {}
+        try {
             pfd.close()
-            if (file.name.startsWith("render_view_")) {
-                file.delete()
-            }
+        } catch (_: Throwable) {}
+        try {
+            tempFile?.delete()
         } catch (_: Throwable) {}
     }
 
@@ -105,15 +124,38 @@ class PdfRendererHelper(
         fun fromUri(context: Context, uri: Uri): PdfRendererHelper {
             val pfd = context.contentResolver.openFileDescriptor(uri, "r")
                 ?: throw IllegalArgumentException("Could not open file descriptor for $uri")
-            // Write to a temporary file in cache if descriptor cannot be duplicated directly
-            val tempFile = File.createTempFile("render_view_", ".pdf", context.cacheDir)
-            context.contentResolver.openInputStream(uri)?.use { input ->
-                tempFile.outputStream().use { output ->
-                    input.copyTo(output)
+            try {
+                // Direct zero-copy descriptor rendering
+                return PdfRendererHelper(pfd, null)
+            } catch (t: Throwable) {
+                try {
+                    pfd.close()
+                } catch (_: Throwable) {}
+
+                // If uri was a 0-byte or corrupt file where direct open threw, don't attempt redundant spooling
+                // if it's already an unrenderable PDF (or if input stream is empty)
+                val tempFile = File.createTempFile("render_view_", ".pdf", context.cacheDir)
+                try {
+                    val input = context.contentResolver.openInputStream(uri)
+                        ?: throw IllegalArgumentException("Could not open input stream for $uri")
+                    input.use { inStream ->
+                        tempFile.outputStream().use { output ->
+                            inStream.copyTo(output)
+                        }
+                    }
+                    if (tempFile.length() == 0L) {
+                        tempFile.delete()
+                        throw IOException("Cannot render 0-byte PDF stream: $uri")
+                    }
+                    val fallbackPfd = ParcelFileDescriptor.open(tempFile, ParcelFileDescriptor.MODE_READ_ONLY)
+                    return PdfRendererHelper(fallbackPfd, tempFile)
+                } catch (fallbackEx: Throwable) {
+                    if (tempFile.exists()) {
+                        tempFile.delete()
+                    }
+                    throw fallbackEx
                 }
             }
-            pfd.close()
-            return PdfRendererHelper(context, tempFile)
         }
     }
 }
